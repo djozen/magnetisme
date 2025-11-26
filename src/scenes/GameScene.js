@@ -524,13 +524,15 @@ export default class GameScene extends Phaser.Scene {
             // Add to new team score
             this.teamScores[player.teamId].score++;
             
-            // Transfer spirit
-            spirit.setFollowPlayer(player, playerIndex);
+            // Transfer spirit with correct index
+            const playerSpiritCount = this.spirits.filter(s => s.followingPlayer === player).length;
+            spirit.setFollowPlayer(player, playerSpiritCount);
             this.updateScoreDisplay();
           }
           // If spirit is free, collect it
           else if (!spirit.followingPlayer) {
-            spirit.setFollowPlayer(player, playerIndex);
+            const playerSpiritCount = this.spirits.filter(s => s.followingPlayer === player).length;
+            spirit.setFollowPlayer(player, playerSpiritCount);
             this.teamScores[player.teamId].score++;
             this.updateScoreDisplay();
           }
