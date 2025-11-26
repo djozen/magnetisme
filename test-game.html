@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Game</title>
+    <style>body { margin: 0; background: #000; }</style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script type="module">
+        import Phaser from '/node_modules/phaser/dist/phaser.esm.js';
+        
+        console.log('Phaser loaded:', Phaser);
+        
+        class TestScene extends Phaser.Scene {
+            create() {
+                this.add.text(400, 300, 'GAME WORKS!', {
+                    fontSize: '48px',
+                    color: '#00ff00'
+                });
+            }
+        }
+        
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            scene: [TestScene]
+        };
+        
+        try {
+            const game = new Phaser.Game(config);
+            console.log('Game created successfully');
+        } catch(e) {
+            console.error('Error creating game:', e);
+            document.body.innerHTML += '<h1 style="color:red">ERROR: ' + e.message + '</h1>';
+        }
+    </script>
+</body>
+</html>

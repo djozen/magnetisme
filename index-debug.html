@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elemental Spirits Duel - TEST</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        color: white;
+        font-family: Arial;
+      }
+      #game-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #error {
+        color: red;
+        padding: 20px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="error"></div>
+    <div id="game-container"></div>
+    <script type="module">
+      window.addEventListener('error', (e) => {
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('error').innerHTML = 'ERROR: ' + e.message + '<br>' + e.filename + ':' + e.lineno;
+        console.error('Error caught:', e);
+      });
+      
+      try {
+        const module = await import('/src/main.js');
+        console.log('Main module loaded successfully');
+      } catch(e) {
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('error').innerHTML = 'MODULE ERROR: ' + e.message + '<br><pre>' + e.stack + '</pre>';
+        console.error('Module error:', e);
+      }
+    </script>
+  </body>
+</html>

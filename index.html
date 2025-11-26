@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elemental Spirits Duel</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      #game-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="error" style="display:none; color:red; padding:20px; position:absolute; top:0; left:0; background:rgba(0,0,0,0.9); z-index:9999; width:100%; box-sizing:border-box;"></div>
+    <div id="game-container"></div>
+    <script>
+      window.addEventListener('error', (e) => {
+        const errorDiv = document.getElementById('error');
+        errorDiv.style.display = 'block';
+        errorDiv.innerHTML = '<h2>ERROR</h2><p>' + e.message + '</p><p>' + e.filename + ':' + e.lineno + '</p>';
+        console.error('Error:', e);
+      });
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
