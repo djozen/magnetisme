@@ -1,49 +1,15 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config.js';
+import { getPlayerShape } from './PlayerShapes.js';
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, element, playerId, isAI = false, teamId = 0, teamColor = 0xff0000) {
-    // Create a graphics object for the player sprite (improved design)
+    // Create a graphics object for the player sprite
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
     
-    // Draw creature body (larger, more detailed)
-    // Main body
-    graphics.fillStyle(element.color, 1);
-    graphics.fillCircle(20, 24, 18);
-    
-    // Add some darker spots for texture
-    const darkerColor = element.color - 0x202020;
-    graphics.fillStyle(darkerColor, 0.5);
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2;
-      const px = 20 + Math.cos(angle) * 12;
-      const py = 24 + Math.sin(angle) * 12;
-      graphics.fillCircle(px, py, 4);
-    }
-    
-    // Eyes (big and expressive)
-    graphics.fillStyle(0xffffff, 1);
-    graphics.fillCircle(14, 20, 5);  // Left eye white
-    graphics.fillCircle(26, 20, 5);  // Right eye white
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillCircle(15, 20, 3);  // Left pupil
-    graphics.fillCircle(27, 20, 3);  // Right pupil
-    graphics.fillStyle(0xffffff, 1);
-    graphics.fillCircle(14, 19, 1.5);  // Left highlight
-    graphics.fillCircle(26, 19, 1.5);  // Right highlight
-    
-    // Cute mouth
-    graphics.lineStyle(2, 0x000000, 1);
-    graphics.arc(20, 26, 4, 0, Math.PI, false);
-    graphics.strokePath();
-    
-    // Team color indicator (horn/crown)
-    graphics.fillStyle(teamColor, 1);
-    graphics.fillTriangle(20, 8, 16, 14, 24, 14);
-    
-    // Outline
-    graphics.lineStyle(2, 0x000000, 1);
-    graphics.strokeCircle(20, 24, 18);
+    // Get unique shape for this player
+    const shapeDrawer = getPlayerShape(playerId);
+    shapeDrawer(graphics, element.color, teamColor);
     
     // Generate texture from graphics
     const key = `player_${playerId}_${Date.now()}`;
