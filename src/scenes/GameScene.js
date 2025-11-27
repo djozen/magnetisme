@@ -1336,7 +1336,17 @@ export default class GameScene extends Phaser.Scene {
             if (!player.inTornado) {
               player.inTornado = true;
               player.tornadoStartTime = time;
+              
+              // Detach all spirits from trapped player
+              this.spirits.forEach(spirit => {
+                if (spirit.followingPlayer === player) {
+                  spirit.setFollowPlayer(null);
+                }
+              });
             }
+            
+            // Mark player as unable to collect spirits while in tornado
+            player.cannotCollectSpirits = true;
             
             const inTornadoDuration = time - player.tornadoStartTime;
             if (inTornadoDuration > 2000) {
@@ -1344,6 +1354,7 @@ export default class GameScene extends Phaser.Scene {
               const angle = Phaser.Math.Angle.Between(zone.x, zone.y, player.x, player.y);
               this.physics.velocityFromRotation(angle, 500, player.body.velocity);
               player.inTornado = false;
+              player.cannotCollectSpirits = false;
             } else {
               // Spin player
               const angle = (time / 100) % (Math.PI * 2);
@@ -1351,7 +1362,10 @@ export default class GameScene extends Phaser.Scene {
               player.y = zone.y + Math.sin(angle) * (zone.radius * 0.7);
             }
           } else {
-            player.inTornado = false;
+            if (player.inTornado) {
+              player.inTornado = false;
+              player.cannotCollectSpirits = false;
+            }
           }
         });
       });
@@ -1732,6 +1746,7 @@ export default class GameScene extends Phaser.Scene {
     this.players.forEach((player, playerIndex) => {
       if (!player.active) return;
       if (player.poisoned) return; // Can't collect if poisoned
+      if (player.cannotCollectSpirits) return; // Can't collect if trapped in tornado
 
       this.spirits.forEach(spirit => {
         if (!spirit.active) return;

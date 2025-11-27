@@ -509,7 +509,7 @@ export class PowerSystem {
   lightPower(player) {
     const castX = player.x;
     const castY = player.y;
-    const radius = GAME_CONFIG.TILE_SIZE * 3;
+    const radius = GAME_CONFIG.TILE_SIZE * 6; // 6 tile radius influence zone
     
     // Find player's base
     const playerBase = this.scene.teamBases.find(b => b.teamId === player.teamId);
@@ -545,11 +545,11 @@ export class PowerSystem {
       player.x = playerBase.x;
       player.y = playerBase.y + 80;
       
-      // Add +10 bonus
+      // Add +10 bonus + double points for spirits
       const teamScore = this.scene.teamScores.find(ts => ts.teamId === player.teamId);
       if (teamScore) {
-        teamScore.score += spiritCount + 10;
-        this.scene.showNotification(playerBase.x, playerBase.y - 100, `+${spiritCount + 10}!`, 0xfffacd);
+        teamScore.score += (spiritCount * 2) + 10; // Double points for teleported spirits
+        this.scene.showNotification(playerBase.x, playerBase.y - 100, `+${(spiritCount * 2) + 10}!`, 0xfffacd);
       }
       
       // Restore normal camera speed after 2 seconds
@@ -560,7 +560,7 @@ export class PowerSystem {
       });
     });
     
-    // Create light zone at cast position that repels players
+    // Create light zone at cast position that repels players and collects spirits
     const lightZone = this.scene.add.circle(castX, castY, radius, 0xfffacd, 0.6);
     lightZone.setDepth(100);
     
@@ -572,6 +572,66 @@ export class PowerSystem {
       duration: 500,
       yoyo: true,
       repeat: -1
+    });
+    
+    // Collect spirits in the light zone - teleport to base and score points
+    const lightCollectionTimer = this.scene.time.addEvent({
+      delay: 100,
+      repeat: 29, // 3 seconds (30 x 100ms)
+      callback: () => {
+        this.scene.spirits.forEach(spirit => {
+          if (!spirit.active) return;
+          
+          const distToZone = Phaser.Math.Distance.Between(
+            castX, castY,
+            spirit.x, spirit.y
+          );
+          
+          // Teleport spirits in the light zone to player's base
+          if (distToZone < radius) {
+            // Detach from current owner if attached
+            if (spirit.followingPlayer) {
+              spirit.setFollowPlayer(null);
+            }
+            
+            // Teleport spirit to base with effect
+            this.scene.tweens.add({
+              targets: spirit,
+              x: playerBase.x,
+              y: playerBase.y,
+              scale: 0,
+              alpha: 0,
+              duration: 500,
+              ease: 'Power2',
+              onComplete: () => {
+                spirit.setActive(false).setVisible(false);
+                
+                // Add 2 points to player's team (double bonus)
+                const teamScore = this.scene.teamScores.find(ts => ts.teamId === player.teamId);
+                if (teamScore) {
+                  teamScore.score += 2; // Double points for zone collection
+                  this.scene.updateScoreDisplay();
+                }
+                
+                // Respawn spirit after delay
+                this.scene.time.delayedCall(GAME_CONFIG.SPIRIT_RESPAWN_TIME, () => {
+                  this.scene.respawnSpirit(spirit);
+                });
+              }
+            });
+            
+            // Visual effect at base
+            const flash = this.scene.add.circle(playerBase.x, playerBase.y, 30, 0xffffff, 0.8);
+            this.scene.tweens.add({
+              targets: flash,
+              scale: 2,
+              alpha: 0,
+              duration: 500,
+              onComplete: () => flash.destroy()
+            });
+          }
+        });
+      }
     });
     
     // Repel players and heal allies
@@ -606,6 +666,7 @@ export class PowerSystem {
     // Remove light zone after 3 seconds
     this.scene.time.delayedCall(3000, () => {
       lightZone.destroy();
+      if (lightCollectionTimer) lightCollectionTimer.remove();
     });
   }
 
@@ -619,15 +680,133 @@ export class PowerSystem {
     const bonusDuration = 200 * playerLevel;
     const duration = baseDuration + bonusDuration;
     
+    const magnetRadius = GAME_CONFIG.TILE_SIZE * 1; // 1 tile magnetism influence
+    const auraRadius = GAME_CONFIG.TILE_SIZE * 1; // 1 tile aura
+    
     // Don't scatter spirits - keep them attached (bug fix)
     // this.scatterSpirits(player);
 
     player.invincible = true;
     player.setTint(0xff1493);
     
+    // Speed boost during plasma
+    const originalSpeed = player.body.maxSpeed;
+    player.body.setMaxSpeed(originalSpeed * 1.5); // 50% speed boost
+    
+    // Create plasma aura circle around player - more visible
+    const auraCircle = this.scene.add.circle(player.x, player.y, auraRadius, 0xff1493, 0.5);
+    auraCircle.setDepth(99); // High depth to be visible
+    auraCircle.setStrokeStyle(3, 0xff69b4, 0.8); // Pink outline
+    
+    // Pulsing aura animation
+    this.scene.tweens.add({
+      targets: auraCircle,
+      alpha: { from: 0.5, to: 0.2 },
+      scale: { from: 1, to: 1.3 },
+      duration: 400,
+      yoyo: true,
+      repeat: -1
+    });
+    
+    // Create particle emitter for plasma aura - more visible
+    const particles = this.scene.add.particles(player.x, player.y, 'particle', {
+      speed: { min: 30, max: 60 },
+      scale: { start: 0.5, end: 0.1 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 1000,
+      frequency: 40, // Slightly reduced frequency
+      quantity: 2, // Reduced quantity
+      tint: [0xff1493, 0xff69b4, 0xffc0cb], // Multiple pink shades
+      angle: { min: 0, max: 360 },
+      radial: true,
+      gravityY: 0
+    });
+    particles.setDepth(100); // Above aura circle
+    
+    // Create laser-like electric bolts shooting outward
+    const createLaserBolt = () => {
+      const angle = Phaser.Math.Between(0, 360) * Math.PI / 180;
+      const distance = auraRadius * 0.8;
+      const targetX = player.x + Math.cos(angle) * distance;
+      const targetY = player.y + Math.sin(angle) * distance;
+      
+      const bolt = this.scene.add.line(
+        player.x, player.y,
+        0, 0,
+        Math.cos(angle) * distance, Math.sin(angle) * distance,
+        0xff1493, 1 // Plasma pink color
+      );
+      bolt.setLineWidth(2);
+      bolt.setDepth(101);
+      
+      // Fade out quickly
+      this.scene.tweens.add({
+        targets: bolt,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => bolt.destroy()
+      });
+    };
+    
+    // Create laser bolts periodically
+    const laserTimer = this.scene.time.addEvent({
+      delay: 150, // Every 150ms
+      repeat: (duration / 150) - 1,
+      callback: () => {
+        if (player.invincible) {
+          createLaserBolt();
+          createLaserBolt(); // Create 2 bolts at a time
+        }
+      }
+    });
+    
+    // Update aura and particle position every frame
+    const updateAura = () => {
+      if (auraCircle && auraCircle.active) {
+        auraCircle.setPosition(player.x, player.y);
+      }
+      if (particles && particles.active) {
+        particles.setPosition(player.x, player.y);
+      }
+    };
+    
+    const auraUpdateEvent = this.scene.time.addEvent({
+      delay: 16, // ~60fps
+      repeat: (duration / 16) - 1,
+      callback: updateAura
+    });
+    
+    // Magnetism effect - attract spirits continuously during plasma
+    const magnetismTimer = this.scene.time.addEvent({
+      delay: 100,
+      repeat: (duration / 100) - 1,
+      callback: () => {
+        if (!player.invincible) return; // Stop if plasma ended early
+        
+        this.scene.spirits.forEach(spirit => {
+          if (!spirit.active) return;
+          
+          const distance = Phaser.Math.Distance.Between(
+            player.x, player.y,
+            spirit.x, spirit.y
+          );
+          
+          if (distance < magnetRadius && spirit.followingPlayer !== player) {
+            spirit.setFollowPlayer(player);
+          }
+        });
+      }
+    });
+    
     this.scene.time.delayedCall(duration, () => {
       player.invincible = false;
       player.clearTint();
+      player.body.setMaxSpeed(originalSpeed); // Restore original speed
+      if (magnetismTimer) magnetismTimer.remove();
+      if (auraUpdateEvent) auraUpdateEvent.remove();
+      if (laserTimer) laserTimer.remove();
+      if (auraCircle) auraCircle.destroy();
+      if (particles) particles.destroy();
     });
   }
 
