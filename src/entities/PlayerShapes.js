@@ -205,6 +205,45 @@ export const PlayerShapes = {
   }
 };
 
+// Store human player's random shape
+let humanPlayerShapeIndex = null;
+let assignedShapes = [];
+
+export function initializeShapes(totalPlayers) {
+  // Reset
+  humanPlayerShapeIndex = null;
+  assignedShapes = [];
+  
+  const shapes = [
+    PlayerShapes.ROUND,
+    PlayerShapes.SQUARE,
+    PlayerShapes.OVAL,
+    PlayerShapes.STAR,
+    PlayerShapes.TRIANGLE,
+    PlayerShapes.DIAMOND,
+    PlayerShapes.HEXAGON,
+    PlayerShapes.CLOUD
+  ];
+  
+  // Human player gets random shape
+  humanPlayerShapeIndex = Phaser.Math.Between(0, 7);
+  assignedShapes.push(humanPlayerShapeIndex);
+  
+  // Assign remaining shapes to AI players
+  const remainingIndices = [];
+  for (let i = 0; i < 8; i++) {
+    if (i !== humanPlayerShapeIndex) {
+      remainingIndices.push(i);
+    }
+  }
+  
+  // Shuffle remaining shapes
+  Phaser.Utils.Array.Shuffle(remainingIndices);
+  assignedShapes.push(...remainingIndices.slice(0, totalPlayers - 1));
+  
+  return shapes;
+}
+
 export function getPlayerShape(playerId) {
   const shapes = [
     PlayerShapes.ROUND,
@@ -217,5 +256,12 @@ export function getPlayerShape(playerId) {
     PlayerShapes.CLOUD
   ];
   
+  // Use assigned shapes if initialized
+  if (assignedShapes.length > 0 && playerId < assignedShapes.length) {
+    return shapes[assignedShapes[playerId]];
+  }
+  
+  // Fallback to sequential
   return shapes[playerId % 8];
 }
+

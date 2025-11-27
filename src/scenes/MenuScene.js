@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ELEMENTS, GAME_CONFIG } from '../config.js';
+import { playerProgress } from '../systems/PlayerProgress.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -10,6 +11,13 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    
+    // Load player progress
+    playerProgress.load();
+    
+    // Options
+    this.friendlyFire = false; // Allies are NOT affected by powers
+    this.giftPowerSharing = false; // Allies can NOT use gift powers by default
 
     // Natural background
     const sky = this.add.graphics();
@@ -38,9 +46,34 @@ export default class MenuScene extends Phaser.Scene {
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+    
+    // Display player progress (Level and Score)
+    const progressText = `Level ${playerProgress.level} - Score: ${playerProgress.globalScore}`;
+    const nextLevelScore = playerProgress.getScoreForNextLevel();
+    const progressSubtext = `Next level: ${nextLevelScore}`;
+    
+    this.add.text(width / 2, 130, progressText, {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffff00',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+    
+    // Only show next level in debug mode
+    if (GAME_CONFIG.DEBUG_MODE) {
+      this.add.text(width / 2, 155, progressSubtext, {
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        color: '#cccccc',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+    }
 
     // Subtitle
-    this.add.text(width / 2, 140, 'Select Your Elemental Pet', {
+    this.add.text(width / 2, 190, 'Select Your Elemental Pet', {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#cccccc'
@@ -50,45 +83,75 @@ export default class MenuScene extends Phaser.Scene {
     const elements = Object.values(ELEMENTS);
     const cols = 7;
     const startX = 200;
-    const startY = 220;
+    const startY = 250;
     const spacing = 140;
 
     this.elementButtons = [];
 
-    elements.forEach((element, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
+    let visibleIndex = 0;
+    elements.forEach((element) => {
+      // Check if element is unlocked (in debug mode, all elements are unlocked)
+      const isUnlocked = GAME_CONFIG.DEBUG_MODE || playerProgress.level >= element.requiredLevel;
+      
+      // Skip locked elements (don't display them at all)
+      if (!isUnlocked && !GAME_CONFIG.DEBUG_MODE) {
+        return;
+      }
+      
+      const col = visibleIndex % cols;
+      const row = Math.floor(visibleIndex / cols);
       const x = startX + col * spacing;
       const y = startY + row * spacing;
+      visibleIndex++;
 
       // Element button
       const button = this.add.circle(x, y, 40, element.color);
-      button.setInteractive({ useHandCursor: true });
-      button.setStrokeStyle(3, 0xffffff);
+      button.setInteractive({ useHandCursor: isUnlocked });
+      button.setStrokeStyle(3, isUnlocked ? 0xffffff : 0x666666);
+      
+      // Debug mode: show lock overlay if locked
+      if (!isUnlocked && GAME_CONFIG.DEBUG_MODE) {
+        button.setAlpha(0.3);
+        const lockIcon = this.add.text(x, y, '🔒', {
+          fontSize: '32px'
+        }).setOrigin(0.5);
+        
+        // Level requirement
+        this.add.text(x, y + 45, `Lv ${element.requiredLevel}`, {
+          fontSize: '14px',
+          fontFamily: 'Arial',
+          color: '#ff0000',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        }).setOrigin(0.5);
+      }
 
       // Element name
       this.add.text(x, y + 60, element.name, {
         fontSize: '16px',
         fontFamily: 'Arial',
-        color: '#ffffff',
+        color: isUnlocked ? '#ffffff' : '#666666',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 4
       }).setOrigin(0.5);
 
-      button.on('pointerover', () => {
-        button.setScale(1.2);
-      });
+      if (isUnlocked) {
+        button.on('pointerover', () => {
+          button.setScale(1.2);
+        });
 
-      button.on('pointerout', () => {
-        button.setScale(1.0);
-      });
+        button.on('pointerout', () => {
+          button.setScale(1.0);
+        });
 
-      button.on('pointerdown', () => {
-        this.selectElement(element);
-      });
+        button.on('pointerdown', () => {
+          this.selectElement(element);
+        });
+      }
 
-      this.elementButtons.push({ button, element });
+      this.elementButtons.push({ button, element, isUnlocked });
     });
 
     // Instructions
@@ -108,13 +171,66 @@ export default class MenuScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 3
     }).setOrigin(0.5);
+    
+    // Option 1: Friendly Fire (allies affected by powers)
+    const checkbox1X = width / 2 - 150;
+    const checkbox1Y = height - 40;
+    
+    this.checkboxBg1 = this.add.rectangle(checkbox1X, checkbox1Y, 20, 20, 0x333333);
+    this.checkboxBg1.setStrokeStyle(2, 0xffffff);
+    this.checkboxBg1.setInteractive({ useHandCursor: true });
+    
+    this.checkboxCheck1 = this.add.text(checkbox1X, checkbox1Y, '✓', {
+      fontSize: '18px',
+      color: '#00ff00',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.checkboxCheck1.setVisible(this.friendlyFire);
+    
+    this.add.text(checkbox1X + 30, checkbox1Y, 'Friendly Fire (allies affected by powers)', {
+      fontSize: '14px',
+      color: '#ffffff'
+    }).setOrigin(0, 0.5);
+    
+    this.checkboxBg1.on('pointerdown', () => {
+      this.friendlyFire = !this.friendlyFire;
+      this.checkboxCheck1.setVisible(this.friendlyFire);
+    });
+    
+    // Option 2: Gift Power Sharing (allies can use gift powers)
+    const checkbox2X = width / 2 - 150;
+    const checkbox2Y = height - 10;
+    
+    this.checkboxBg2 = this.add.rectangle(checkbox2X, checkbox2Y, 20, 20, 0x333333);
+    this.checkboxBg2.setStrokeStyle(2, 0xffffff);
+    this.checkboxBg2.setInteractive({ useHandCursor: true });
+    
+    this.checkboxCheck2 = this.add.text(checkbox2X, checkbox2Y, '✓', {
+      fontSize: '18px',
+      color: '#00ff00',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.checkboxCheck2.setVisible(this.giftPowerSharing);
+    
+    this.add.text(checkbox2X + 30, checkbox2Y, 'Gift Power Sharing (allies can use gift powers)', {
+      fontSize: '14px',
+      color: '#ffffff'
+    }).setOrigin(0, 0.5);
+    
+    this.checkboxBg2.on('pointerdown', () => {
+      this.giftPowerSharing = !this.giftPowerSharing;
+      this.checkboxCheck2.setVisible(this.giftPowerSharing);
+    });
   }
 
   selectElement(element) {
     // Start game with selected element
     this.scene.start('GameScene', { 
       playerElement: element,
-      playerCount: 1 // Human player count, AI will fill the rest
+      playerCount: 1, // Human player count, AI will fill the rest
+      friendlyFire: this.friendlyFire,
+      giftPowerSharing: this.giftPowerSharing,
+      debugMode: GAME_CONFIG.DEBUG_MODE
     });
   }
 

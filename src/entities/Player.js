@@ -29,6 +29,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.collectedSpirits = [];
     this.trailParticles = [];
 
+    // Power system - individual player management
+    this.availablePowers = [element.key];
+    this.powerCharge = 0;
+    this.maxPowerCharge = GAME_CONFIG.MAX_POWER_CHARGE;
+    this.powerChargeRate = GAME_CONFIG.POWER_CHARGE_RATE;
+    this.lastGiftPowerUse = -20000; // Track last gift power usage (allow immediate first use)
+    this.giftPowerCooldown = 20000; // 20 seconds cooldown for gift powers
+
     // Physics properties
     this.setCollideWorldBounds(true);
     this.setDrag(400);
@@ -73,8 +81,44 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  addPowerCharge(amount) {
+    // Only humans charge power
+    if (!this.isAI) {
+      this.powerCharge = Math.min(this.powerCharge + amount, this.maxPowerCharge);
+    }
+  }
+
+  canUsePower() {
+    // AI can always use powers, humans need full charge
+    if (this.isAI) return true;
+    return this.powerCharge >= this.maxPowerCharge;
+  }
+
+  usePower() {
+    if (!this.canUsePower()) return false;
+    // Only humans consume power charge
+    if (!this.isAI) {
+      this.powerCharge = 0;
+    }
+    return true;
+  }
+
+  addPower(elementKey) {
+    if (!this.availablePowers.includes(elementKey)) {
+      this.availablePowers.push(elementKey);
+    }
+  }
+
+  removePower(elementKey) {
+    const index = this.availablePowers.indexOf(elementKey);
+    if (index > 0) { // Don't remove base element (index 0)
+      this.availablePowers.splice(index, 1);
+    }
+  }
+
   collectSpirit(spirit) {
     this.collectedSpirits.push(spirit);
+    this.addPowerCharge(GAME_CONFIG.POWER_BONUS_PER_SPIRIT);
   }
 
   destroy() {

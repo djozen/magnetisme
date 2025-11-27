@@ -47,6 +47,13 @@ export default class BootScene extends Phaser.Scene {
     graphics.generateTexture('white', 8, 8);
     graphics.destroy();
 
+    // Create particle texture for fire effects
+    const particleGraphics = this.add.graphics();
+    particleGraphics.fillStyle(0xffffff, 1);
+    particleGraphics.fillCircle(4, 4, 4);
+    particleGraphics.generateTexture('particle', 8, 8);
+    particleGraphics.destroy();
+
     this.scene.start('MenuScene');
   }
 }
