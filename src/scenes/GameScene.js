@@ -20,6 +20,18 @@ export default class GameScene extends Phaser.Scene {
     this.powerSystem = null;
     this.gameOver = false;
     this.debugMode = false;
+    
+    // Track keyboard state using native API (Vite HMR fix)
+    this.nativeKeys = {
+      ArrowLeft: false,
+      ArrowRight: false,
+      ArrowUp: false,
+      ArrowDown: false,
+      KeyA: false,
+      KeyD: false,
+      KeyW: false,
+      KeyS: false
+    };
   }
 
   init(data) {
@@ -29,6 +41,34 @@ export default class GameScene extends Phaser.Scene {
     this.friendlyFire = data.friendlyFire !== undefined ? data.friendlyFire : false;
     this.giftPowerSharing = data.giftPowerSharing !== undefined ? data.giftPowerSharing : false;
     this.debugMode = data.debugMode !== undefined ? data.debugMode : false;
+  }
+
+  cleanupScene() {
+    // Remove native keyboard listeners
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+    }
+    if (this.keyupHandler) {
+      window.removeEventListener('keyup', this.keyupHandler);
+    }
+    
+    // Clear all arrays
+    this.players = [];
+    this.spirits = [];
+    this.gifts = [];
+    this.aiControllers = [];
+    this.teamScores = [];
+    this.teamScoreTexts = [];
+    
+    // Reset state
+    this.gameOver = false;
+    this.gameTime = GAME_CONFIG.GAME_TIME;
+    this.giftSpawnTimer = 0;
+    
+    // Reset native keys state
+    Object.keys(this.nativeKeys).forEach(key => {
+      this.nativeKeys[key] = false;
+    });
   }
 
   create() {
@@ -85,6 +125,22 @@ export default class GameScene extends Phaser.Scene {
     this.key1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
     this.key2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
     this.key3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
+
+    // Setup native keyboard listeners (Vite HMR fix)
+    this.keydownHandler = (e) => {
+      if (e.code in this.nativeKeys) {
+        this.nativeKeys[e.code] = true;
+      }
+    };
+    
+    this.keyupHandler = (e) => {
+      if (e.code in this.nativeKeys) {
+        this.nativeKeys[e.code] = false;
+      }
+    };
+    
+    window.addEventListener('keydown', this.keydownHandler);
+    window.addEventListener('keyup', this.keyupHandler);
 
     // Start game timer
     this.startTimer();
@@ -1184,6 +1240,7 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     // Check ENTER key to return to menu when game is over
     if (this.gameOver && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+      this.cleanupScene();
       this.scene.start('MenuScene');
       return;
     }
@@ -1195,6 +1252,7 @@ export default class GameScene extends Phaser.Scene {
     
     // Check ESC key to return to menu
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      this.cleanupScene();
       this.scene.start('MenuScene');
       return;
     }
@@ -1387,6 +1445,11 @@ export default class GameScene extends Phaser.Scene {
               player.frozen = true;
               player.setVelocity(0, 0);
               player.setTint(0x87ceeb);
+              // Completely disable movement
+              if (player.body) {
+                player.body.setImmovable(true);
+                player.body.moves = false;
+              }
             }
           }
         });
@@ -1395,6 +1458,11 @@ export default class GameScene extends Phaser.Scene {
         if (!inAnyIceZone && player.frozen) {
           player.frozen = false;
           player.clearTint();
+          // Re-enable movement
+          if (player.body) {
+            player.body.setImmovable(false);
+            player.body.moves = true;
+          }
         }
       });
     }
@@ -1492,18 +1560,20 @@ export default class GameScene extends Phaser.Scene {
             }
           }
           
-          // Magnetize ONLY the caster (Shadow player) when close to zone
+          // Magnetize ONLY enemies when close to zone (not the caster)
           const magnetArea = zone.magnetRadius || (zone.radius * 1.5);
-          if (zone.caster && player === zone.caster && dist < magnetArea && zone.magnetize && !player.disappeared && player.body) {
+          const isEnemy = zone.player && player !== zone.player && (!this.friendlyFire || player.teamId !== zone.player.teamId);
+          
+          if (isEnemy && dist < magnetArea && zone.magnetize && !player.disappeared && player.body) {
             const angle = Phaser.Math.Angle.Between(player.x, player.y, zone.x, zone.y);
-            const pullForce = 300; // Stronger pull speed for Shadow player
+            const pullForce = 300; // Pull force for enemies
             
             // Apply acceleration towards the zone center
             player.body.setAcceleration(
               Math.cos(angle) * pullForce,
               Math.sin(angle) * pullForce
             );
-          } else if (player === zone.caster && player.body) {
+          } else if (player.body && isEnemy) {
             // Reset acceleration when out of range
             player.body.setAcceleration(0, 0);
           }
@@ -1572,21 +1642,34 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Use native keyboard API (Vite HMR fix - prevents stuck keys)
     let velocityX = 0;
     let velocityY = 0;
 
-    if (this.cursors.left.isDown || this.wasd.left.isDown) {
+    const leftPressed = this.nativeKeys.ArrowLeft || this.nativeKeys.KeyA;
+    const rightPressed = this.nativeKeys.ArrowRight || this.nativeKeys.KeyD;
+    const upPressed = this.nativeKeys.ArrowUp || this.nativeKeys.KeyW;
+    const downPressed = this.nativeKeys.ArrowDown || this.nativeKeys.KeyS;
+
+    if (leftPressed) {
       velocityX = -GAME_CONFIG.PLAYER_SPEED;
-    } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
+    } else if (rightPressed) {
       velocityX = GAME_CONFIG.PLAYER_SPEED;
     }
 
-    if (this.cursors.up.isDown || this.wasd.up.isDown) {
+    if (upPressed) {
       velocityY = -GAME_CONFIG.PLAYER_SPEED;
-    } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
+    } else if (downPressed) {
       velocityY = GAME_CONFIG.PLAYER_SPEED;
     }
 
+    // Normalize diagonal movement
+    if (velocityX !== 0 && velocityY !== 0) {
+      velocityX *= 0.707; // 1/sqrt(2)
+      velocityY *= 0.707;
+    }
+
+    // Always set velocity (ensures stopped state when no keys pressed)
     player.setVelocity(velocityX, velocityY);
   }
 
