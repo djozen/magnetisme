@@ -41,6 +41,8 @@ export default class GameScene extends Phaser.Scene {
     this.friendlyFire = data.friendlyFire !== undefined ? data.friendlyFire : false;
     this.giftPowerSharing = data.giftPowerSharing !== undefined ? data.giftPowerSharing : false;
     this.debugMode = data.debugMode !== undefined ? data.debugMode : false;
+    this.configPlayerSpeed = data.playerSpeed || GAME_CONFIG.PLAYER_SPEED;
+    this.configSpiritSpeed = data.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
   }
 
   cleanupScene() {
@@ -444,7 +446,7 @@ export default class GameScene extends Phaser.Scene {
       this.players.push(aiPlayer);
 
       // Create AI controller
-      const aiController = new AIController(this, aiPlayer);
+      const aiController = new AIController(this, aiPlayer, this.configPlayerSpeed);
       this.aiControllers.push(aiController);
     }
 
@@ -520,7 +522,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(tempPlayer, this.obstacles);
     
     // Create AI controller for temporary ally
-    const tempAI = new AIController(this, tempPlayer);
+    const tempAI = new AIController(this, tempPlayer, this.configPlayerSpeed);
     this.aiControllers.push(tempAI);
     
     // Add visual indicator (glow effect)
@@ -1004,7 +1006,7 @@ export default class GameScene extends Phaser.Scene {
       }
 
       // If we couldn't find a valid position after 50 attempts, use the last position anyway
-      const spirit = new Spirit(this, x, y);
+      const spirit = new Spirit(this, x, y, this.configSpiritSpeed);
       this.spirits.push(spirit);
     }
   }
@@ -1652,15 +1654,15 @@ export default class GameScene extends Phaser.Scene {
     const downPressed = this.nativeKeys.ArrowDown || this.nativeKeys.KeyS;
 
     if (leftPressed) {
-      velocityX = -GAME_CONFIG.PLAYER_SPEED;
+      velocityX = -this.configPlayerSpeed;
     } else if (rightPressed) {
-      velocityX = GAME_CONFIG.PLAYER_SPEED;
+      velocityX = this.configPlayerSpeed;
     }
 
     if (upPressed) {
-      velocityY = -GAME_CONFIG.PLAYER_SPEED;
+      velocityY = -this.configPlayerSpeed;
     } else if (downPressed) {
-      velocityY = GAME_CONFIG.PLAYER_SPEED;
+      velocityY = this.configPlayerSpeed;
     }
 
     // Normalize diagonal movement

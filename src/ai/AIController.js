@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from '../config.js';
 
 export default class AIController {
-  constructor(scene, player) {
+  constructor(scene, player, playerSpeed) {
     this.scene = scene;
     this.player = player;
     this.target = null;
@@ -14,6 +14,7 @@ export default class AIController {
     this.lastPowerUse = Date.now(); // Initialize to current time to prevent immediate use
     this.powerCooldown = 30000; // 30 seconds in milliseconds (increased from 20)
     this.initialDelay = 45000; // 45 seconds initial delay before first power use
+    this.playerSpeed = playerSpeed || GAME_CONFIG.PLAYER_SPEED;
   }
 
   update(time, delta) {
@@ -169,8 +170,8 @@ export default class AIController {
       target.x, target.y
     );
 
-    let velocityX = Math.cos(angle) * GAME_CONFIG.PLAYER_SPEED;
-    let velocityY = Math.sin(angle) * GAME_CONFIG.PLAYER_SPEED;
+    let velocityX = Math.cos(angle) * this.playerSpeed;
+    let velocityY = Math.sin(angle) * this.playerSpeed;
 
     // Check for nearby allies to avoid collision/blocking
     const nearbyAllies = this.scene.players.filter(p => {
@@ -183,14 +184,14 @@ export default class AIController {
     if (nearbyAllies.length > 0) {
       const ally = nearbyAllies[0];
       const avoidAngle = Phaser.Math.Angle.Between(ally.x, ally.y, this.player.x, this.player.y);
-      velocityX += Math.cos(avoidAngle) * GAME_CONFIG.PLAYER_SPEED * 0.5;
-      velocityY += Math.sin(avoidAngle) * GAME_CONFIG.PLAYER_SPEED * 0.5;
+      velocityX += Math.cos(avoidAngle) * this.playerSpeed * 0.5;
+      velocityY += Math.sin(avoidAngle) * this.playerSpeed * 0.5;
     }
 
     // Add some randomness to make AI less perfect
     const randomness = 0.08; // Reduced from 0.15 for better accuracy
-    const randomX = (Math.random() - 0.5) * GAME_CONFIG.PLAYER_SPEED * randomness;
-    const randomY = (Math.random() - 0.5) * GAME_CONFIG.PLAYER_SPEED * randomness;
+    const randomX = (Math.random() - 0.5) * this.playerSpeed * randomness;
+    const randomY = (Math.random() - 0.5) * this.playerSpeed * randomness;
 
     this.player.setVelocity(
       velocityX + randomX,

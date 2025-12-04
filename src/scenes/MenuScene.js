@@ -18,6 +18,8 @@ export default class MenuScene extends Phaser.Scene {
     // Options
     this.friendlyFire = false; // Allies are NOT affected by powers
     this.giftPowerSharing = false; // Allies can NOT use gift powers by default
+    this.playerSpeed = GAME_CONFIG.PLAYER_SPEED; // Vitesse des personnages (IA et contrôlés)
+    this.spiritSpeed = GAME_CONFIG.SPIRIT_FOLLOW_SPEED; // Vitesse de suivi des esprits
 
     // Natural background
     const sky = this.add.graphics();
@@ -221,6 +223,81 @@ export default class MenuScene extends Phaser.Scene {
       this.giftPowerSharing = !this.giftPowerSharing;
       this.checkboxCheck2.setVisible(this.giftPowerSharing);
     });
+
+    // Slider 1: Player Speed
+    const slider1X = width / 2 + 150;
+    const slider1Y = height - 40;
+    const sliderWidth = 150;
+    
+    this.add.text(slider1X - 80, slider1Y, 'Player Speed:', {
+      fontSize: '14px',
+      color: '#ffffff'
+    }).setOrigin(1, 0.5);
+    
+    this.playerSpeedText = this.add.text(slider1X + sliderWidth + 10, slider1Y, `${this.playerSpeed}`, {
+      fontSize: '14px',
+      color: '#00ff00'
+    }).setOrigin(0, 0.5);
+    
+    // Slider background
+    this.add.rectangle(slider1X, slider1Y, sliderWidth, 6, 0x333333);
+    
+    // Slider handle
+    this.playerSpeedHandle = this.add.circle(
+      slider1X - sliderWidth/2 + ((this.playerSpeed - 100) / 300) * sliderWidth,
+      slider1Y,
+      8,
+      0xffffff
+    ).setInteractive({ useHandCursor: true, draggable: true });
+    
+    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+      if (gameObject === this.playerSpeedHandle) {
+        const minX = slider1X - sliderWidth/2;
+        const maxX = slider1X + sliderWidth/2;
+        const clampedX = Phaser.Math.Clamp(dragX, minX, maxX);
+        gameObject.x = clampedX;
+        
+        // Convert position to speed (100-400)
+        const ratio = (clampedX - minX) / sliderWidth;
+        this.playerSpeed = Math.round(100 + ratio * 300);
+        this.playerSpeedText.setText(`${this.playerSpeed}`);
+      } else if (gameObject === this.spiritSpeedHandle) {
+        const minX = slider2X - sliderWidth/2;
+        const maxX = slider2X + sliderWidth/2;
+        const clampedX = Phaser.Math.Clamp(dragX, minX, maxX);
+        gameObject.x = clampedX;
+        
+        // Convert position to speed (100-500)
+        const ratio = (clampedX - minX) / sliderWidth;
+        this.spiritSpeed = Math.round(100 + ratio * 400);
+        this.spiritSpeedText.setText(`${this.spiritSpeed}`);
+      }
+    });
+    
+    // Slider 2: Spirit Speed
+    const slider2X = slider1X;
+    const slider2Y = height - 10;
+    
+    this.add.text(slider2X - 80, slider2Y, 'Spirit Speed:', {
+      fontSize: '14px',
+      color: '#ffffff'
+    }).setOrigin(1, 0.5);
+    
+    this.spiritSpeedText = this.add.text(slider2X + sliderWidth + 10, slider2Y, `${this.spiritSpeed}`, {
+      fontSize: '14px',
+      color: '#00ff00'
+    }).setOrigin(0, 0.5);
+    
+    // Slider background
+    this.add.rectangle(slider2X, slider2Y, sliderWidth, 6, 0x333333);
+    
+    // Slider handle
+    this.spiritSpeedHandle = this.add.circle(
+      slider2X - sliderWidth/2 + ((this.spiritSpeed - 100) / 400) * sliderWidth,
+      slider2Y,
+      8,
+      0xffffff
+    ).setInteractive({ useHandCursor: true, draggable: true });
   }
 
   selectElement(element) {
@@ -230,7 +307,9 @@ export default class MenuScene extends Phaser.Scene {
       playerCount: 1, // Human player count, AI will fill the rest
       friendlyFire: this.friendlyFire,
       giftPowerSharing: this.giftPowerSharing,
-      debugMode: GAME_CONFIG.DEBUG_MODE
+      debugMode: GAME_CONFIG.DEBUG_MODE,
+      playerSpeed: this.playerSpeed,
+      spiritSpeed: this.spiritSpeed
     });
   }
 

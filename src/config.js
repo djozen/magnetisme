@@ -24,9 +24,9 @@ export const GAME_CONFIG = {
   PLAYERS_PER_TEAM: 2,
   SPIRIT_COUNT: 100,
   GAME_TIME: 120, // seconds
-  PLAYER_SPEED: 200,
+  PLAYER_SPEED: 300,
   SPIRIT_COLLECT_DISTANCE: 35,
-  SPIRIT_FOLLOW_SPEED: 250,  // Augmenté de 150 à 200 pour suivi plus rapide
+  SPIRIT_FOLLOW_SPEED: 300,  // Augmenté de 150 à 200 pour suivi plus rapide
   SPIRIT_SPACING: 25,
   BASE_ZONE_SIZE: 100,
   BASE_DEPOSIT_DISTANCE: 80,
@@ -42,7 +42,7 @@ export const GAME_CONFIG = {
   // Gameplay options
   FRIENDLY_FIRE: true,  // Les pouvoirs affectent les alliés (false = immunité alliée)
   GIFT_POWER_KEY: 'CTRL',  // Key to activate gift powers (default: CTRL)
-  MAX_GIFT_POWERS: 1,  // Maximum number of gift powers that can be held simultaneously (1-3)
+  MAX_GIFT_POWERS: 3,  // Maximum number of gift powers that can be held simultaneously (1-3)
   DEBUG_MODE: true  // Debug mode: show all elements, next level info, unlimited powers
 };
 
