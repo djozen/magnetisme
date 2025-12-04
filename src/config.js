@@ -43,7 +43,8 @@ export const GAME_CONFIG = {
   FRIENDLY_FIRE: true,  // Les pouvoirs affectent les alliés (false = immunité alliée)
   GIFT_POWER_KEY: 'CTRL',  // Key to activate gift powers (default: CTRL)
   MAX_GIFT_POWERS: 3,  // Maximum number of gift powers that can be held simultaneously (1-3)
-  DEBUG_MODE: true  // Debug mode: show all elements, next level info, unlimited powers
+  DEBUG_MODE: true,  // Debug mode: show all elements, next level info, unlimited powers
+  DEBUG_LEVEL: 20  // Niveau en mode debug (1-20, affecte l'agressivité des IA)
 };
 
 export const TEAM_COLORS = [

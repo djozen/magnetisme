@@ -30,7 +30,17 @@ export default class GameScene extends Phaser.Scene {
       KeyA: false,
       KeyD: false,
       KeyW: false,
-      KeyS: false
+      KeyS: false,
+      Space: false,
+      Digit1: false,
+      Digit2: false,
+      Digit3: false
+    };
+    this.previousKeys = {
+      Space: false,
+      Digit1: false,
+      Digit2: false,
+      Digit3: false
     };
   }
 
@@ -996,7 +1006,7 @@ export default class GameScene extends Phaser.Scene {
         // Check if position overlaps with any obstacle
         const overlapping = this.obstacles.getChildren().some(obstacle => {
           const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
-          return distance < 50; // Keep spirits away from obstacles
+          return distance < 80; // Distance raisonnable des obstacles (augmenté de 50 à 80)
         });
 
         if (!overlapping) {
@@ -1614,8 +1624,9 @@ export default class GameScene extends Phaser.Scene {
     // Debug mode: unlimited powers
     const canUsePrimaryPower = this.debugMode || player.canUsePower();
     
-    // Check for power activation (Space key - primary element)
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && canUsePrimaryPower) {
+    // Check for power activation (Space key - primary element) with native API
+    const spaceJustDown = this.nativeKeys.Space && !this.previousKeys.Space;
+    if (spaceJustDown && canUsePrimaryPower) {
       this.powerSystem.activatePower(player, player.element.key);
     }
     
@@ -1624,19 +1635,32 @@ export default class GameScene extends Phaser.Scene {
       const timeSinceLastGiftPower = this.time.now - player.lastGiftPowerUse;
       const canUseGiftPower = this.debugMode || timeSinceLastGiftPower >= player.giftPowerCooldown;
       
-      if (Phaser.Input.Keyboard.JustDown(this.key1) && player.availablePowers.length > 1 && canUseGiftPower) {
+      // Détection JustDown avec API native (touche enfoncée maintenant mais pas avant)
+      const key1JustDown = this.nativeKeys.Digit1 && !this.previousKeys.Digit1;
+      const key2JustDown = this.nativeKeys.Digit2 && !this.previousKeys.Digit2;
+      const key3JustDown = this.nativeKeys.Digit3 && !this.previousKeys.Digit3;
+      
+      if (key1JustDown && player.availablePowers.length > 1 && canUseGiftPower) {
         this.powerSystem.activatePower(player, player.availablePowers[1]);
         player.lastGiftPowerUse = this.time.now;
       }
-      if (Phaser.Input.Keyboard.JustDown(this.key2) && player.availablePowers.length > 2 && canUseGiftPower) {
+      if (key2JustDown && player.availablePowers.length > 2 && canUseGiftPower) {
         this.powerSystem.activatePower(player, player.availablePowers[2]);
         player.lastGiftPowerUse = this.time.now;
       }
-      if (Phaser.Input.Keyboard.JustDown(this.key3) && player.availablePowers.length > 3 && canUseGiftPower) {
+      if (key3JustDown && player.availablePowers.length > 3 && canUseGiftPower) {
         this.powerSystem.activatePower(player, player.availablePowers[3]);
         player.lastGiftPowerUse = this.time.now;
       }
+      
+      // Mise à jour de l'état précédent des touches
+      this.previousKeys.Digit1 = this.nativeKeys.Digit1;
+      this.previousKeys.Digit2 = this.nativeKeys.Digit2;
+      this.previousKeys.Digit3 = this.nativeKeys.Digit3;
     }
+    
+    // Mise à jour de l'état précédent de Space
+    this.previousKeys.Space = this.nativeKeys.Space;
 
     // Check if player is frozen
     if (player.frozen) {
