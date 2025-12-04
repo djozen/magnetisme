@@ -184,7 +184,7 @@ export class PowerSystem {
   icePower(player) {
     const radius = GAME_CONFIG.TILE_SIZE * 1.5;
     
-    // Visual - ice zone for 5 seconds
+    // Visual - ice zone for 10 seconds
     const ice = this.scene.add.circle(player.x, player.y, radius, 0x87ceeb, 0.5);
     ice.setDepth(100);
     
@@ -194,27 +194,27 @@ export class PowerSystem {
       alpha: { from: 0.5, to: 0.3 },
       duration: 1000,
       yoyo: true,
-      repeat: 4 // 5 seconds total
+      repeat: 9 // 10 seconds total
     });
 
     this.scatterSpirits(player);
 
-    // Create ice zone for 5 seconds
+    // Create ice zone for 10 seconds
     const iceZone = {
       x: player.x,
       y: player.y,
       radius: radius,
       graphic: ice,
       player: player,
-      duration: 5000,
+      duration: 10000,
       elapsed: 0
     };
     
     if (!this.scene.iceZones) this.scene.iceZones = [];
     this.scene.iceZones.push(iceZone);
     
-    // Remove ice zone after 5 seconds
-    this.scene.time.delayedCall(5000, () => {
+    // Remove ice zone after 10 seconds
+    this.scene.time.delayedCall(10000, () => {
       ice.destroy();
       const index = this.scene.iceZones.indexOf(iceZone);
       if (index > -1) this.scene.iceZones.splice(index, 1);
