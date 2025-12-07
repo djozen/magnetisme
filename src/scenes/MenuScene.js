@@ -423,8 +423,8 @@ export default class MenuScene extends Phaser.Scene {
     const terrains = Object.values(TERRAINS);
     const cols = 4;
     const startX = width / 2 - 300;
-    const startY = 180;
-    const spacing = 150;
+    const startY = 150; // Réduit de 180 à 150
+    const spacing = 130; // Réduit de 150 à 130 pour avoir plus d'espace
     
     this.terrainButtons = [];
     
@@ -498,14 +498,30 @@ export default class MenuScene extends Phaser.Scene {
 
   hideTerrainSelection() {
     if (this.terrainOverlay) {
-      // Destroy all terrain selection UI
+      // Destroy overlay
+      this.terrainOverlay.destroy();
+      this.terrainOverlay = null;
+      
+      // Destroy all terrain buttons and their texts
+      this.terrainButtons.forEach(tb => {
+        if (tb.button && tb.button.destroy) {
+          tb.button.destroy();
+        }
+      });
+      this.terrainButtons = [];
+      
+      // Destroy all UI elements with depth >= 1001 (terrain selection UI)
+      const toDestroy = [];
       this.children.list.forEach(child => {
-        if (child.depth >= 1000) {
+        if (child.depth >= 1001) {
+          toDestroy.push(child);
+        }
+      });
+      toDestroy.forEach(child => {
+        if (child && child.destroy) {
           child.destroy();
         }
       });
-      this.terrainOverlay = null;
-      this.terrainButtons = [];
     }
   }
 

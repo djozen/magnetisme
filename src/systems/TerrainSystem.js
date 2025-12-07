@@ -3773,7 +3773,7 @@ export class TerrainSystem {
       this.effects.push(shimmer);
     }
 
-    // Treasure obstacles everywhere (25-30)
+    // Treasure types for extended areas (1-4 tiles)
     const treasureTypes = [
       // Type 1: Large treasure chests with overflowing coins
       () => {
@@ -3912,23 +3912,147 @@ export class TerrainSystem {
           scatter.fillStyle(0xffd700, 1);
         }
         return scatter;
+      },
+      // Type 9: Golden Desk (Bureau)
+      () => {
+        const desk = this.scene.add.graphics();
+        desk.fillStyle(0xdaa520, 1);
+        // Desktop
+        desk.fillRect(-30, -15, 60, 30);
+        // Legs
+        desk.fillRect(-28, 15, 6, 15);
+        desk.fillRect(22, 15, 6, 15);
+        // Drawer handles
+        desk.fillStyle(0x8b4513, 1);
+        desk.fillCircle(-10, 0, 3);
+        desk.fillCircle(10, 0, 3);
+        // Gold shine
+        desk.fillStyle(0xffd700, 0.5);
+        desk.fillRect(-25, -12, 50, 5);
+        return desk;
+      },
+      // Type 10: Golden Chair (Chaise)
+      () => {
+        const chair = this.scene.add.graphics();
+        chair.fillStyle(0xdaa520, 1);
+        // Seat
+        chair.fillRect(-15, 0, 30, 20);
+        // Backrest
+        chair.fillRect(-15, -25, 30, 25);
+        // Legs
+        chair.fillRect(-12, 20, 5, 12);
+        chair.fillRect(7, 20, 5, 12);
+        // Gold shine
+        chair.fillStyle(0xffd700, 0.5);
+        chair.fillRect(-12, -20, 24, 8);
+        return chair;
+      },
+      // Type 11: Golden Table
+      () => {
+        const table = this.scene.add.graphics();
+        table.fillStyle(0xdaa520, 1);
+        // Tabletop
+        table.fillRect(-35, -5, 70, 10);
+        // Legs
+        table.fillRect(-32, 5, 8, 20);
+        table.fillRect(24, 5, 8, 20);
+        // Gold trim
+        table.fillStyle(0xffd700, 1);
+        table.fillRect(-35, -5, 70, 3);
+        return table;
+      },
+      // Type 12: Golden Bench (Banc)
+      () => {
+        const bench = this.scene.add.graphics();
+        bench.fillStyle(0xdaa520, 1);
+        // Seat
+        bench.fillRect(-40, -8, 80, 16);
+        // Legs
+        bench.fillRect(-35, 8, 10, 18);
+        bench.fillRect(25, 8, 10, 18);
+        // Decorative details
+        bench.fillStyle(0xffd700, 1);
+        for (let i = 0; i < 5; i++) {
+          bench.fillCircle(-30 + i * 15, 0, 3);
+        }
+        return bench;
+      },
+      // Type 13: Golden Bed (Lit)
+      () => {
+        const bed = this.scene.add.graphics();
+        bed.fillStyle(0xdaa520, 1);
+        // Mattress
+        bed.fillRect(-40, -10, 80, 35);
+        // Headboard
+        bed.fillRect(-40, -30, 10, 30);
+        // Footboard
+        bed.fillRect(30, -20, 10, 30);
+        // Pillow
+        bed.fillStyle(0xffd700, 1);
+        bed.fillRect(-35, -8, 25, 15);
+        // Gold trim
+        bed.fillStyle(0xffed4e, 0.7);
+        bed.fillRect(-40, -10, 80, 5);
+        return bed;
       }
     ];
 
-    for (let i = 0; i < 22; i++) {
-      const treasureX = Phaser.Math.Between(50, width - 50);
-      const treasureY = Phaser.Math.Between(50, height - 50);
+    // Create 15-20 concentrated treasure piles (1-4 tiles each)
+    const numPiles = Phaser.Math.Between(15, 20);
+    const tileSize = GAME_CONFIG.TILE_SIZE || 80;
+    const minDistanceFromBase = tileSize * 2; // 2 tiles from bases
+    
+    for (let i = 0; i < numPiles; i++) {
+      let pileX, pileY, attempts = 0;
+      let validPosition = false;
       
-      const treasureType = Phaser.Utils.Array.GetRandom(treasureTypes);
-      const treasure = treasureType();
-      treasure.setPosition(treasureX, treasureY);
-      treasure.setDepth(5);
+      // Try to find valid position away from bases
+      while (!validPosition && attempts < 50) {
+        pileX = Phaser.Math.Between(100, width - 100);
+        pileY = Phaser.Math.Between(100, height - 100);
+        
+        // Check distance from all bases
+        if (!this.isNearBase(pileX, pileY, minDistanceFromBase)) {
+          validPosition = true;
+        }
+        attempts++;
+      }
       
-      this.effects.push(treasure);
+      // Skip if no valid position found
+      if (!validPosition) continue;
       
-      // OBSTACLE PHYSIQUE - tous les trésors sont des obstacles
-      const treasureObstacle = this.scene.add.circle(treasureX, treasureY, 25, 0x000000, 0);
-      this.addObstacle(treasureObstacle);
+      // Random size: 1-4 tiles (40-160px radius for concentrated pile)
+      const numTiles = Phaser.Math.Between(1, 4);
+      const pileRadius = numTiles * (tileSize / 2); // Half tile size for more concentrated piles
+      
+      // Create obstacle circle for this pile
+      const obstacle = this.scene.add.circle(pileX, pileY, pileRadius, 0x000000, 0);
+      this.addObstacle(obstacle);
+      
+      // Number of treasure items based on pile size (more concentrated)
+      const itemsPerTile = Phaser.Math.Between(5, 8);
+      const numItems = numTiles * itemsPerTile;
+      
+      // Place treasure items concentrated in this pile
+      for (let j = 0; j < numItems; j++) {
+        // Random position within pile radius (concentrated)
+        const angle = Phaser.Math.Between(0, 360) * Math.PI / 180;
+        const distance = Phaser.Math.Between(0, pileRadius * 0.8); // 80% of radius for tighter grouping
+        const treasureX = pileX + Math.cos(angle) * distance;
+        const treasureY = pileY + Math.sin(angle) * distance;
+        
+        // Skip if outside bounds
+        if (treasureX < 50 || treasureX > width - 50 || treasureY < 50 || treasureY > height - 50) {
+          continue;
+        }
+        
+        const treasureType = Phaser.Utils.Array.GetRandom(treasureTypes);
+        const treasure = treasureType();
+        treasure.setPosition(treasureX, treasureY);
+        treasure.setDepth(5);
+        
+        this.effects.push(treasure);
+      }
     }
   }
 
