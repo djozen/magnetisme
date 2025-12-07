@@ -327,10 +327,11 @@ export class PowerSystem {
     // Get player level (AI players are level 1)
     const playerLevel = player.isAI ? 1 : playerProgress.level;
     
-    // Base radius + 0.2 tiles per level
-    const baseRadius = GAME_CONFIG.TILE_SIZE * 1.5;
+    // Rayon: 2 tuiles au départ + 0.2 tuile par niveau (max 4 tuiles)
+    const baseRadius = GAME_CONFIG.TILE_SIZE * 2; // 2 tuiles
     const bonusRadius = GAME_CONFIG.TILE_SIZE * 0.2 * playerLevel;
-    const radius = baseRadius + bonusRadius;
+    const maxRadius = GAME_CONFIG.TILE_SIZE * 4; // 4 tuiles max
+    const radius = Math.min(maxRadius, baseRadius + bonusRadius);
     
     // Don't scatter own spirits, only affect enemies in tornado zone
     // this.scatterSpirits(player);

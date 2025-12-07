@@ -40,14 +40,14 @@ export default class MenuScene extends Phaser.Scene {
     this.createBackgroundTrees(width, height);
 
     // Title with shadow
-    this.add.text(width / 2 + 3, 83, 'ELEMENTAL SPIRITS DUEL', {
+    this.add.text(width / 2 + 3, 83, 'ELEMENTAL BALLS DUEL', {
       fontSize: '48px',
       fontFamily: 'Arial',
       color: '#00000080',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.add.text(width / 2, 80, 'ELEMENTAL SPIRITS DUEL', {
+    this.add.text(width / 2, 80, 'ELEMENTAL BALLS DUEL', {
       fontSize: '48px',
       fontFamily: 'Arial',
       color: '#ffffff',
@@ -345,7 +345,7 @@ export default class MenuScene extends Phaser.Scene {
     
     this.input.on('dragend', (pointer, gameObject) => {
       // Save options when slider is released
-      if (gameObject === this.playerSpeedHandle || gameObject === this.spiritSpeedHandle) {
+      if (gameObject === this.playerSpeedHandle || gameObject === this.ballSpeedHandle) {
         this.saveOptions();
       }
     });
@@ -354,12 +354,12 @@ export default class MenuScene extends Phaser.Scene {
     const slider2X = slider1X;
     const slider2Y = height - 10;
     
-    this.add.text(slider2X - 80, slider2Y, 'Spirit Speed:', {
+    this.add.text(slider2X - 80, slider2Y, 'Ball Speed:', {
       fontSize: '14px',
       color: '#ffffff'
     }).setOrigin(1, 0.5);
     
-    this.spiritSpeedText = this.add.text(slider2X + sliderWidth + 10, slider2Y, `${this.spiritSpeed}`, {
+    this.ballSpeedText = this.add.text(slider2X + sliderWidth + 10, slider2Y, `${this.ballSpeed}`, {
       fontSize: '14px',
       color: '#00ff00'
     }).setOrigin(0, 0.5);
@@ -368,8 +368,8 @@ export default class MenuScene extends Phaser.Scene {
     this.add.rectangle(slider2X, slider2Y, sliderWidth, 6, 0x333333);
     
     // Slider handle
-    this.spiritSpeedHandle = this.add.circle(
-      slider2X - sliderWidth/2 + ((this.spiritSpeed - 100) / 400) * sliderWidth,
+    this.ballSpeedHandle = this.add.circle(
+      slider2X - sliderWidth/2 + ((this.ballSpeed - 100) / 400) * sliderWidth,
       slider2Y,
       8,
       0xffffff
@@ -398,7 +398,7 @@ export default class MenuScene extends Phaser.Scene {
       giftPowerSharing: this.giftPowerSharing,
       debugMode: GAME_CONFIG.DEBUG_MODE,
       playerSpeed: this.playerSpeed,
-      spiritSpeed: this.spiritSpeed,
+      ballSpeed: this.ballSpeed,
       selectedTerrain: this.selectedTerrain
     });
   }
@@ -544,7 +544,7 @@ export default class MenuScene extends Phaser.Scene {
         this.giftPowerSharing = options.giftPowerSharing || false;
         this.canChooseTerrain = options.canChooseTerrain || false;
         this.playerSpeed = options.playerSpeed || GAME_CONFIG.PLAYER_SPEED;
-        this.spiritSpeed = options.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+        this.ballSpeed = options.ballSpeed || options.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
       } else {
         this.setDefaultOptions();
       }
@@ -560,7 +560,7 @@ export default class MenuScene extends Phaser.Scene {
     this.giftPowerSharing = false;
     this.canChooseTerrain = false;
     this.playerSpeed = GAME_CONFIG.PLAYER_SPEED;
-    this.spiritSpeed = GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+    this.ballSpeed = GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
   }
 
   // Save options to game-options.json
@@ -570,7 +570,7 @@ export default class MenuScene extends Phaser.Scene {
       giftPowerSharing: this.giftPowerSharing,
       canChooseTerrain: this.canChooseTerrain,
       playerSpeed: this.playerSpeed,
-      spiritSpeed: this.spiritSpeed
+      ballSpeed: this.ballSpeed
     };
     
     // Display options in console for manual editing
@@ -595,7 +595,7 @@ export default class MenuScene extends Phaser.Scene {
       giftPowerSharing: this.giftPowerSharing,
       canChooseTerrain: this.canChooseTerrain,
       playerSpeed: this.playerSpeed,
-      spiritSpeed: this.spiritSpeed
+      ballSpeed: this.ballSpeed
     };
     
     // Create JSON content with nice formatting

@@ -1,6 +1,6 @@
-# Elemental Spirits Duel 🎃
+# Elemental Balls Duel 🎃
 
-A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete with up to 8 players (AI-controlled or human) to collect cute neutral spirits using elemental pets!
+A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete with up to 8 players (AI-controlled or human) to collect cute neutral balls using elemental pets!
 
 ## Features
 
@@ -25,7 +25,7 @@ A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete wi
 🎮 **Gameplay:**
 - Up to 8 players compete simultaneously
 - AI-controlled bots fill empty player slots
-- Collect cute neutral spirits with big eyes
+- Collect cute neutral balls with big eyes
 - 3-minute rounds with score tracking
 - Real-time leaderboard
 - Team-based competition with unique elemental bases
@@ -33,13 +33,13 @@ A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete wi
 🎁 **Gift System:**
 - **Element Gifts** (Purple) - Unlock additional elemental powers for your team (max 1 gift power at a time)
 - **Time Gifts** (Cyan) - Add 20 seconds to the game timer
-- **Magnetism Gifts** (Yellow) - Attract all nearby spirits for 10 seconds
+- **Magnetism Gifts** (Yellow) - Attract all nearby balls for 10 seconds
 - Gifts spawn randomly throughout the match
 - Limited capacity: collecting a new gift power replaces the oldest one (FIFO system)
 
 ⚡ **Power System:**
 - **Primary Power (SPACE)** - Use your elemental pet's unique ability
-  - Charge-based system for human players (fills over time and when collecting spirits)
+  - Charge-based system for human players (fills over time and when collecting balls)
   - 30-second cooldown for AI players
 - **Gift Powers (1/2/3)** - Activate collected gift powers
   - 20-second cooldown shared across all gift powers
@@ -51,26 +51,26 @@ A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete wi
 Each element has a unique power ability:
 
 - **Water** 💧 - Knockback wave that pushes enemies away (3 tile radius + 0.2/level)
-- **Fire** 🔥 - Destroys enemy spirits in range, protects own spirits (2 tile radius + 0.2/level, 3 tile knockback)
+- **Fire** 🔥 - Destroys enemy balls in range, protects own balls (2 tile radius + 0.2/level, 3 tile knockback)
 - **Wind** 💨 - Creates a spinning tornado zone with visible particle rings (1.5 tile radius + 0.2/level, 10 seconds)
 - **Earth** 🌍 - Creates a 3-sided wall barrier with right side open (5 tiles, 10 seconds)
 - **Leaf** 🍃 - Heal and speed boost for allies in range
 - **Ice** ❄️ - Creates a freeze zone that completely stops movement (1.5 tile radius, 5 seconds, auto-removes)
-- **Glass** 🔮 - Creates an AI clone that collects spirits for 20 seconds
+- **Glass** 🔮 - Creates an AI clone that collects balls for 20 seconds
 - **Sand** 🏜️ - Slows enemies to 30% speed in visible zone (2 tile radius, persistent)
 - **Wood** 🪵 - Summon wood barriers for defense
-- **Plasma** 💥 - Energy blast without scattering spirits (12s base + 0.2s/level duration)
+- **Plasma** 💥 - Energy blast without scattering balls (12s base + 0.2s/level duration)
 - **Toxic** ☢️ - Poison enemies with 12 second damage over time
-- **Thunder** ⚡ - Teleport enemies to your base and steal their spirits (10 second zone)
-- **Shadow** 🌑 - Creates black hole zone (2 tiles) with magnetism (6 tiles) - attracts all spirits like Iron when Shadow is inside, makes enemies disappear for 5 seconds, visible white outline for Shadow in black zone
-- **Light** ✨ - Teleports to base with +10 bonus, deposits spirits, creates repel/heal zone (3 tiles), smooth camera transition
-- **Iron** 🔩 - Magnetism that attracts all spirits in 5-tile radius for 2 seconds
+- **Thunder** ⚡ - Teleport enemies to your base and steal their balls (10 second zone)
+- **Shadow** 🌑 - Creates black hole zone (2 tiles) with magnetism (6 tiles) - attracts all balls like Iron when Shadow is inside, makes enemies disappear for 5 seconds, visible white outline for Shadow in black zone
+- **Light** ✨ - Teleports to base with +10 bonus, deposits balls, creates repel/heal zone (3 tiles), smooth camera transition
+- **Iron** 🔩 - Magnetism that attracts all balls in 5-tile radius for 2 seconds
 - **Gold** 🏆 - Convert enemies to your team for 15 seconds in a 4-tile radius
 
 🤖 **Smart AI:**
 - AI players have unique personalities
 - Different aggression levels (30%-80%)
-- Strategic spirit collection (prioritizes close spirits <300 units)
+- Strategic ball collection (prioritizes close balls <300 units)
 - 30-second power cooldown (no power usage in first 30 seconds)
 - Optional gift power sharing (can use team's collected gift powers)
 
@@ -95,11 +95,11 @@ Each element has a unique power ability:
 - **2** - Use second gift power (20-second cooldown)
 - **3** - Use third gift power (20-second cooldown)
 - **ENTER** - Return to menu when game ends
-- Navigate close to spirits to collect them automatically
+- Navigate close to balls to collect them automatically
 
 ### Game Rules
 1. **Select Your Element** - Choose from available elemental pets (unlock more by leveling up!)
-2. **Collect Spirits** - Gather as many neutral spirits as possible in 3 minutes
+2. **Collect Balls** - Gather as many neutral balls as possible in 3 minutes
 3. **Use Powers Strategically** - Each element has unique abilities to help or hinder
 4. **Collect Gifts** - Find rare gift orbs for bonus powers, time, or magnetism
 5. **Team Victory** - Work with AI teammates to outscore other teams
@@ -111,12 +111,12 @@ Each element has a unique power ability:
 - **Gift Power Sharing** - Allow AI teammates to use collected gift powers (5% chance per decision)
 - **Choose Terrain** - Enable terrain selection after choosing your element
 - **Player Speed** - Adjust movement speed for all players (100-400)
-- **Spirit Speed** - Adjust how fast spirits follow players (100-500)
+- **Ball Speed** - Adjust how fast balls follow players (100-500)
 
 **Note:** Options can be configured in-game or by editing `game-options.json` file. See [GAME-OPTIONS-README.md](./GAME-OPTIONS-README.md) for details.
 
 ### Tips
-- Collect spirits to charge your primary power faster
+- Collect balls to charge your primary power faster
 - Use gift powers strategically during team fights
 - Different elements counter each other - choose wisely!
 - AI teammates will help collect spirits and use powers

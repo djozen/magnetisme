@@ -46,7 +46,7 @@ magnetisme/game-options.json
   "giftPowerSharing": true,
   "canChooseTerrain": true,
   "playerSpeed": 220,
-  "spiritSpeed": 300
+  "ballSpeed": 300
 }
 ```
 

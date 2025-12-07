@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_CONFIG } from '../config.js';
 
 export default class Spirit extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, spiritSpeed, spiritType = 'default') {
+  constructor(scene, x, y, ballSpeed, spiritType = 'default') {
     // Create a graphics object for the spirit sprite
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
     
@@ -31,7 +31,7 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
     this.followIndex = 0;
     this.originalX = x;
     this.originalY = y;
-    this.spiritSpeed = spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+    this.ballSpeed = ballSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
 
     // Add floating animation only if not following
     this.floatOffset = Math.random() * Math.PI * 2;
@@ -125,7 +125,7 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
     // Only move if too far from target
     if (distance > GAME_CONFIG.SPIRIT_SPACING) {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
-      const speed = this.spiritSpeed;
+      const speed = this.ballSpeed;
       
       this.setVelocity(
         Math.cos(angle) * speed,

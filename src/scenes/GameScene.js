@@ -54,7 +54,7 @@ export default class GameScene extends Phaser.Scene {
     this.giftPowerSharing = data.giftPowerSharing !== undefined ? data.giftPowerSharing : false;
     this.debugMode = data.debugMode !== undefined ? data.debugMode : false;
     this.configPlayerSpeed = data.playerSpeed || GAME_CONFIG.PLAYER_SPEED;
-    this.configSpiritSpeed = data.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+    this.configBallSpeed = data.ballSpeed || data.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
     this.selectedTerrain = data.selectedTerrain || null;
   }
 
@@ -1313,7 +1313,7 @@ export default class GameScene extends Phaser.Scene {
         actualSpiritType = (i % 2 === 0) ? 'default' : 'black';
       }
       
-      const spirit = new Spirit(this, x, y, this.configSpiritSpeed, actualSpiritType);
+      const spirit = new Spirit(this, x, y, this.configBallSpeed, actualSpiritType);
       this.spirits.push(spirit);
     }
   }
