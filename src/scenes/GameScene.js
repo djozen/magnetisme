@@ -7,6 +7,7 @@ import AIController from '../ai/AIController.js';
 import { initializeShapes } from '../entities/PlayerShapes.js';
 import { PowerSystem } from '../systems/PowerSystem.js';
 import { playerProgress } from '../systems/PlayerProgress.js';
+import { TerrainSystem, TERRAINS } from '../systems/TerrainSystem.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -18,6 +19,7 @@ export default class GameScene extends Phaser.Scene {
     this.gameTime = GAME_CONFIG.GAME_TIME;
     this.teamScores = [];
     this.powerSystem = null;
+    this.terrainSystem = null;
     this.gameOver = false;
     this.debugMode = false;
     
@@ -53,6 +55,7 @@ export default class GameScene extends Phaser.Scene {
     this.debugMode = data.debugMode !== undefined ? data.debugMode : false;
     this.configPlayerSpeed = data.playerSpeed || GAME_CONFIG.PLAYER_SPEED;
     this.configSpiritSpeed = data.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+    this.selectedTerrain = data.selectedTerrain || null;
   }
 
   cleanupScene() {
@@ -86,17 +89,41 @@ export default class GameScene extends Phaser.Scene {
   create() {
     // Initialize power system
     this.powerSystem = new PowerSystem(this);
+    
+    // Initialize terrain system
+    this.terrainSystem = new TerrainSystem(this);
+    
     const width = GAME_CONFIG.WORLD_WIDTH;
     const height = GAME_CONFIG.WORLD_HEIGHT;
 
     // Set world bounds to larger size
     this.physics.world.setBounds(0, 0, width, height);
 
-    // Create natural environment
-    this.createNaturalEnvironment(width, height);
+    // Create obstacles group for physics (BEFORE terrain creation)
+    this.obstacles = this.physics.add.staticGroup();
+
+    // Determine and create terrain
+    // Will be set after players are created
+    this.currentTerrain = null;
 
     // Initialize players
     this.createPlayers();
+
+    // Determine and create terrain based on players
+    this.currentTerrain = this.terrainSystem.selectTerrain(
+      this.playerElement, 
+      this.players,
+      this.selectedTerrain
+    );
+    
+    // Calculate base positions BEFORE creating terrain (to avoid obstacles near bases)
+    const basePositions = this.calculateBasePositions();
+    
+    // Create terrain or natural environment
+    if (this.currentTerrain && this.currentTerrain.useNaturalBase) {
+      this.createNaturalEnvironment(width, height);
+    }
+    this.terrainSystem.createTerrain(this.currentTerrain, width, height, basePositions);
 
     // Create team bases
     this.createTeamBases();
@@ -166,11 +193,13 @@ export default class GameScene extends Phaser.Scene {
     const sky = this.add.graphics();
     sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0x98D8C8, 0x98D8C8, 1);
     sky.fillRect(0, 0, width, height);
+    sky.setDepth(-2);
 
     // Full grass ground
     const grass = this.add.graphics();
     grass.fillStyle(0x6b9d47, 1);
     grass.fillRect(0, 0, width, height);
+    grass.setDepth(-1);
 
     // Add grass texture (random blades)
     for (let i = 0; i < 300; i++) {
@@ -179,22 +208,25 @@ export default class GameScene extends Phaser.Scene {
       const blade = this.add.graphics();
       blade.lineStyle(1, 0x5d8a3a, 0.3);
       blade.lineBetween(x, y, x + Phaser.Math.Between(-2, 2), y - Phaser.Math.Between(3, 8));
+      blade.setDepth(0);
     }
 
-    // Create obstacles group for physics
-    this.obstacles = this.physics.add.staticGroup();
-
-    // Create maze-like grid layout
-    this.createMazeLayout(width, height);
+    // Create maze-like grid layout with terrain-specific density
+    this.createMazeLayout(width, height, this.currentTerrain);
 
     // Add flowers in walkable areas
     this.createFlowers(width, height);
   }
 
-  createMazeLayout(width, height) {
+  createMazeLayout(width, height, terrain) {
     const tileSize = GAME_CONFIG.TILE_SIZE;
     const cols = Math.floor(width / tileSize);
     const rows = Math.floor(height / tileSize);
+
+    // Densité réduite pour Wind, Wood, Leaf et Water Light
+    const isLightTerrain = terrain && ['wind', 'wood', 'leaf', 'waterLight'].includes(terrain.key);
+    const gridDensity = isLightTerrain ? 4 : 2; // Obstacles tous les 4 au lieu de 2
+    const randomChance = isLightTerrain ? 0.05 : 0.25; // 5% au lieu de 25%
 
     // Calculate base positions to exclude obstacles around them
     const basePositions = [];
@@ -207,7 +239,7 @@ export default class GameScene extends Phaser.Scene {
       basePositions.push({ x: bx, y: by });
     }
 
-    // Create grid-based maze pattern with MORE obstacles
+    // Create grid-based maze pattern
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const x = col * tileSize + tileSize / 2;
@@ -221,12 +253,31 @@ export default class GameScene extends Phaser.Scene {
 
         if (nearBase) continue; // Skip obstacles near bases
 
-        // Create pattern: obstacles on sparser grid (every 3rd instead of every 2nd)
-        const isObstacle = (row % 3 === 1 && col % 3 === 1);
+        // Create pattern: obstacles on alternating grid positions
+        const isObstacle = (row % gridDensity === 1 && col % gridDensity === 1);
         
         if (isObstacle) {
-          // Randomly choose obstacle type
-          const obstacleType = Phaser.Math.Between(1, 3);
+          // Choix d'obstacle selon le terrain
+          let obstacleType;
+          if (terrain && terrain.key === 'wood') {
+            // Wood: majoritairement des arbres
+            obstacleType = Math.random() < 0.8 ? 1 : 3;
+          } else if (terrain && terrain.key === 'leaf') {
+            // Leaf: arbres et buissons
+            obstacleType = Math.random() < 0.7 ? 1 : 3;
+          } else if (terrain && terrain.key === 'wind') {
+            // Wind: rochers et quelques arbres
+            obstacleType = Math.random() < 0.3 ? 1 : 3;
+          } else if (terrain && terrain.key === 'water') {
+            // Water: beaucoup d'eau, quelques arbres
+            obstacleType = Math.random() < 0.2 ? 1 : 2;
+          } else if (terrain && terrain.key === 'waterLight') {
+            // Water Light: rochers principalement (comme Wind)
+            obstacleType = Math.random() < 0.3 ? 1 : 3;
+          } else {
+            // Défaut: mélange équilibré
+            obstacleType = Phaser.Math.Between(1, 3);
+          }
           
           if (obstacleType === 1) {
             // Tree cluster
@@ -240,9 +291,9 @@ export default class GameScene extends Phaser.Scene {
           }
         }
         
-        // Add random obstacles in walkable areas (reduced for better AI navigation)
-        else if (Math.random() < 0.10 && row > 0 && col > 0) {
-          if (Math.random() < 0.4) {
+        // Add random obstacles in walkable areas (réduit pour terrains légers)
+        else if (Math.random() < randomChance && row > 0 && col > 0) {
+          if (Math.random() < 0.6) {
             // Small bush
             this.createBush(x, y, 30);
           } else {
@@ -263,11 +314,13 @@ export default class GameScene extends Phaser.Scene {
     const trunk = this.add.rectangle(x, y, trunkSize, trunkSize, 0x654321);
     this.physics.add.existing(trunk, true);
     this.obstacles.add(trunk);
+    trunk.setDepth(5);
 
     // Visual trunk
     const trunkVisual = this.add.graphics();
     trunkVisual.fillStyle(0x654321, 1);
     trunkVisual.fillRect(x - 8 * scale, y - 10 * scale, 16 * scale, 40 * scale);
+    trunkVisual.setDepth(5);
 
     // Tree foliage (visual only)
     const foliageLayers = [
@@ -277,7 +330,8 @@ export default class GameScene extends Phaser.Scene {
     ];
 
     foliageLayers.forEach(layer => {
-      this.add.circle(x, y + layer.y, layer.radius, layer.color, 0.9);
+      const foliage = this.add.circle(x, y + layer.y, layer.radius, layer.color, 0.9);
+      foliage.setDepth(6);
     });
   }
 
@@ -286,15 +340,19 @@ export default class GameScene extends Phaser.Scene {
     const water = this.add.ellipse(x, y, size, size * 0.8, 0x4a90e2, 1);
     this.physics.add.existing(water, true);
     this.obstacles.add(water);
+    water.setDepth(3);
 
     // Water details
-    this.add.ellipse(x, y, size, size * 0.8, 0x4a90e2, 0.8);
-    this.add.ellipse(x - 5, y - 5, size * 0.6, size * 0.5, 0x6bb6ff, 0.4);
+    const waterDetail1 = this.add.ellipse(x, y, size, size * 0.8, 0x4a90e2, 0.8);
+    waterDetail1.setDepth(3);
+    const waterDetail2 = this.add.ellipse(x - 5, y - 5, size * 0.6, size * 0.5, 0x6bb6ff, 0.4);
+    waterDetail2.setDepth(4);
     
     // Ripples
     const ripple = this.add.graphics();
     ripple.lineStyle(2, 0x6bb6ff, 0.3);
     ripple.strokeEllipse(x, y, size * 0.7, size * 0.6);
+    ripple.setDepth(4);
   }
 
   createRockFormation(x, y) {
@@ -303,22 +361,30 @@ export default class GameScene extends Phaser.Scene {
     const rock = this.add.ellipse(x, y, rockSize, rockSize * 0.8, 0x808080, 1);
     this.physics.add.existing(rock, true);
     this.obstacles.add(rock);
+    rock.setDepth(5);
 
     // Additional visual rocks
-    this.add.ellipse(x + 2, y + 2, rockSize, rockSize * 0.8, 0x404040, 0.3);
-    this.add.ellipse(x - 10, y - 10, 20, 16, 0x999999, 1);
-    this.add.ellipse(x + 15, y + 5, 18, 14, 0x999999, 1);
-    this.add.ellipse(x - 5, y - 5, rockSize * 0.3, rockSize * 0.2, 0xaaaaaa, 0.6);
+    const shadow = this.add.ellipse(x + 2, y + 2, rockSize, rockSize * 0.8, 0x404040, 0.3);
+    shadow.setDepth(5);
+    const rock1 = this.add.ellipse(x - 10, y - 10, 20, 16, 0x999999, 1);
+    rock1.setDepth(5);
+    const rock2 = this.add.ellipse(x + 15, y + 5, 18, 14, 0x999999, 1);
+    rock2.setDepth(5);
+    const highlight = this.add.ellipse(x - 5, y - 5, rockSize * 0.3, rockSize * 0.2, 0xaaaaaa, 0.6);
+    highlight.setDepth(6);
   }
 
   createBush(x, y, size) {
     const bush = this.add.ellipse(x, y, size, size * 0.6, 0x4a7c2f, 1);
     this.physics.add.existing(bush, true);
     this.obstacles.add(bush);
+    bush.setDepth(4);
 
     // Visual details
-    this.add.ellipse(x - 8, y - 3, size * 0.7, size * 0.5, 0x5d8a3a, 0.9);
-    this.add.ellipse(x + 8, y - 3, size * 0.7, size * 0.5, 0x5d8a3a, 0.9);
+    const detail1 = this.add.ellipse(x - 8, y - 3, size * 0.7, size * 0.5, 0x5d8a3a, 0.9);
+    detail1.setDepth(4);
+    const detail2 = this.add.ellipse(x + 8, y - 3, size * 0.7, size * 0.5, 0x5d8a3a, 0.9);
+    detail2.setDepth(4);
   }
 
   createMazeBridges(width, height, tileSize) {
@@ -355,6 +421,7 @@ export default class GameScene extends Phaser.Scene {
           );
         }
       }
+      deck.setDepth(2);
 
       // Bridge posts
       const posts = this.add.graphics();
@@ -366,6 +433,7 @@ export default class GameScene extends Phaser.Scene {
         posts.fillRect(bridge.x - bridgeWidth/2 - 5, bridge.y - bridgeHeight/2, bridgeWidth + 10, 6);
         posts.fillRect(bridge.x - bridgeWidth/2 - 5, bridge.y + bridgeHeight/2 - 6, bridgeWidth + 10, 6);
       }
+      posts.setDepth(3);
     });
   }
 
@@ -382,11 +450,13 @@ export default class GameScene extends Phaser.Scene {
         const angle = (j / 5) * Math.PI * 2;
         const petalX = x + Math.cos(angle) * 3;
         const petalY = y + Math.sin(angle) * 3;
-        this.add.circle(petalX, petalY, 2, color, 0.8);
+        const petal = this.add.circle(petalX, petalY, 2, color, 0.8);
+        petal.setDepth(1);
       }
       
       // Flower center
-      this.add.circle(x, y, 1.5, 0xffff00, 1);
+      const center = this.add.circle(x, y, 1.5, 0xffff00, 1);
+      center.setDepth(1);
     }
   }
 
@@ -563,6 +633,32 @@ export default class GameScene extends Phaser.Scene {
     return tempPlayer;
   }
 
+  calculateBasePositions() {
+    const width = GAME_CONFIG.WORLD_WIDTH;
+    const height = GAME_CONFIG.WORLD_HEIGHT;
+    const basePositions = [];
+
+    // Get unique teams
+    const teamElements = new Map();
+    this.players.forEach(p => {
+      if (!teamElements.has(p.teamId)) {
+        teamElements.set(p.teamId, p.element);
+      }
+    });
+
+    const activeTeams = Array.from(teamElements.entries());
+
+    activeTeams.forEach(([teamId, element], index) => {
+      const angle = (index / activeTeams.length) * Math.PI * 2;
+      const radius = Math.min(width, height) * 0.4;
+      const x = width / 2 + Math.cos(angle) * radius;
+      const y = height / 2 + Math.sin(angle) * radius;
+      basePositions.push({ x, y, radius: GAME_CONFIG.BASE_ZONE_SIZE * 2 }); // 2x for safety zone
+    });
+
+    return basePositions;
+  }
+
   createTeamBases() {
     this.teamBases = [];
     const width = GAME_CONFIG.WORLD_WIDTH;
@@ -633,7 +729,11 @@ export default class GameScene extends Phaser.Scene {
     
     switch(element.key) {
       case 'earth':
-        // Montagne
+        // Montagne avec ombre
+        graphics.fillStyle(0x654321, 0.3);
+        graphics.fillEllipse(x, y + size * 0.6, size * 2.2, size * 0.4);
+        
+        // Montagne principale
         graphics.fillStyle(0x8b4513, 1);
         graphics.beginPath();
         graphics.moveTo(x, y - size);
@@ -641,41 +741,69 @@ export default class GameScene extends Phaser.Scene {
         graphics.lineTo(x + size, y + size * 0.5);
         graphics.closePath();
         graphics.fillPath();
-        graphics.fillStyle(0xa0522d, 0.8);
+        
+        // Ombrage côté gauche
+        graphics.fillStyle(0x654321, 0.5);
         graphics.beginPath();
-        graphics.moveTo(x - size * 0.5, y);
+        graphics.moveTo(x, y - size);
         graphics.lineTo(x - size, y + size * 0.5);
-        graphics.lineTo(x, y + size * 0.5);
+        graphics.lineTo(x - size * 0.5, y + size * 0.5);
+        graphics.lineTo(x - size * 0.3, y);
         graphics.closePath();
         graphics.fillPath();
-        graphics.fillStyle(0xffffff, 0.9);
+        
+        // Reflet côté droit
+        graphics.fillStyle(0xa0522d, 0.8);
         graphics.beginPath();
-        graphics.moveTo(x - 10, y - size);
-        graphics.lineTo(x, y - size + 20);
-        graphics.lineTo(x + 10, y - size);
+        graphics.moveTo(x, y - size);
+        graphics.lineTo(x + size, y + size * 0.5);
+        graphics.lineTo(x + size * 0.5, y + size * 0.5);
+        graphics.lineTo(x + size * 0.3, y);
+        graphics.closePath();
+        graphics.fillPath();
+        
+        // Neige au sommet
+        graphics.fillStyle(0xffffff, 0.95);
+        graphics.beginPath();
+        graphics.moveTo(x - 15, y - size + 10);
+        graphics.lineTo(x, y - size);
+        graphics.lineTo(x + 15, y - size + 10);
+        graphics.lineTo(x + 10, y - size + 25);
+        graphics.lineTo(x - 10, y - size + 25);
         graphics.closePath();
         graphics.fillPath();
         createBaseText(x, y + size * 0.7, 'MOUNTAIN');
         break;
 
       case 'fire':
-        // Zone d'incendie
-        graphics.fillStyle(0xff4500, 0.6);
+        // Ombre de chaleur
+        graphics.fillStyle(0x000000, 0.2);
+        graphics.fillEllipse(x, y + size * 0.15, size * 1.8, size * 0.4);
+        
+        // Zone d'incendie avec dégradé
+        graphics.fillStyle(0xff4500, 0.7);
         graphics.fillCircle(x, y, size);
-        graphics.fillStyle(0xff6600, 0.4);
-        graphics.fillCircle(x, y, size * 0.7);
+        graphics.fillStyle(0xff6600, 0.6);
+        graphics.fillCircle(x, y, size * 0.8);
+        graphics.fillStyle(0xff8800, 0.4);
+        graphics.fillCircle(x, y, size * 0.6);
+        graphics.fillStyle(0xffaa00, 0.3);
+        graphics.fillCircle(x, y, size * 0.4);
+        
         // Flammes animées avec cercles
         for (let i = 0; i < 8; i++) {
           const angle = (i / 8) * Math.PI * 2;
           const flame = this.add.ellipse(
             x + Math.cos(angle) * size * 0.6,
             y + Math.sin(angle) * size * 0.6,
-            15, 30, 0xff0000, 0.8
+            18, 35, 0xff0000, 0.9
           );
+          flame.setDepth(6);
           this.tweens.add({
             targets: flame,
-            scaleY: { from: 1, to: 1.5 },
-            alpha: { from: 0.8, to: 0.4 },
+            scaleY: { from: 1, to: 1.6 },
+            scaleX: { from: 1, to: 0.8 },
+            alpha: { from: 0.9, to: 0.3 },
             duration: 800,
             yoyo: true,
             repeat: -1,
@@ -755,21 +883,51 @@ export default class GameScene extends Phaser.Scene {
         break;
 
       case 'ice':
-        // Cité de glace
-        graphics.fillStyle(0x87ceeb, 0.8);
+        // Ombre glacée
+        graphics.fillStyle(0x4682b4, 0.2);
+        graphics.fillEllipse(x, y + size * 0.6, size * 2.4, size * 0.4);
+        
+        // Plateforme de glace
+        graphics.fillStyle(0x87ceeb, 0.7);
         graphics.fillRect(x - size, y - size * 0.5, size * 2, size);
-        graphics.fillStyle(0xadd8e6, 0.9);
+        graphics.fillStyle(0xb0e0e6, 0.5);
+        graphics.fillRect(x - size, y - size * 0.5, size * 2, size * 0.2);
+        
         // Tours de glace
+        graphics.fillStyle(0xadd8e6, 0.95);
         for (let i = 0; i < 3; i++) {
           const dx = (i - 1) * size * 0.6;
+          
+          // Corps de la tour
           graphics.fillRect(x + dx - 20, y - size, 40, size);
+          
+          // Ombrage côté gauche
+          graphics.fillStyle(0x87ceeb, 0.4);
+          graphics.fillRect(x + dx - 20, y - size, 12, size);
+          
+          // Reflet côté droit
+          graphics.fillStyle(0xf0f8ff, 0.6);
+          graphics.fillRect(x + dx + 8, y - size, 12, size);
+          
           // Toit triangulaire
+          graphics.fillStyle(0xe0ffff, 0.95);
           graphics.beginPath();
-          graphics.moveTo(x + dx, y - size - 30);
-          graphics.lineTo(x + dx - 25, y - size);
-          graphics.lineTo(x + dx + 25, y - size);
+          graphics.moveTo(x + dx, y - size - 35);
+          graphics.lineTo(x + dx - 28, y - size);
+          graphics.lineTo(x + dx + 28, y - size);
           graphics.closePath();
           graphics.fillPath();
+          
+          // Reflet sur le toit
+          graphics.fillStyle(0xffffff, 0.7);
+          graphics.beginPath();
+          graphics.moveTo(x + dx, y - size - 35);
+          graphics.lineTo(x + dx + 28, y - size);
+          graphics.lineTo(x + dx + 14, y - size);
+          graphics.closePath();
+          graphics.fillPath();
+          
+          graphics.fillStyle(0xadd8e6, 0.95);
         }
         createBaseText(x, y + size * 0.7, 'ICE CITY');
         break;
@@ -793,28 +951,75 @@ export default class GameScene extends Phaser.Scene {
         break;
 
       case 'wind':
-        // Base circulaire visible (dans graphics principal)
-        graphics.fillStyle(0xb0e0e6, 0.4);
-        graphics.fillCircle(x, y, size);
-        graphics.lineStyle(4, 0x87ceeb, 0.8);
-        graphics.strokeCircle(x, y, size);
+        // Tornade spéciale comme base
+        // Ombre de la tornade
+        graphics.fillStyle(0x000000, 0.15);
+        graphics.fillEllipse(x, y + size * 0.3, size * 1.6, size * 0.4);
         
-        // Tornade au centre (graphics séparé pour animation)
+        // Cercle de base au sol
+        graphics.fillStyle(0xb0e0e6, 0.3);
+        graphics.fillCircle(x, y, size * 0.8);
+        graphics.lineStyle(3, 0x87ceeb, 0.7);
+        graphics.strokeCircle(x, y, size * 0.8);
+        
+        // Corps de la tornade (spirale conique)
         const tornadoGraphics = this.add.graphics();
-        tornadoGraphics.lineStyle(3, 0xb0e0e6, 0.8);
-        for (let i = 0; i < 20; i++) {
-          const r = (i / 20) * size * 0.7;
-          const a = i * 0.5;
-          tornadoGraphics.strokeCircle(x + Math.cos(a) * r * 0.3, y - size * 0.5 + i * size * 0.05, r * 0.5);
+        tornadoGraphics.lineStyle(4, 0xb0e0e6, 0.9);
+        
+        // Dessiner la spirale de la tornade
+        for (let i = 0; i < 25; i++) {
+          const t = i / 25;
+          const radius = size * 0.7 * (1 - t * 0.7); // Rétrécit vers le haut
+          const angle = t * Math.PI * 6; // 3 tours complets
+          const yPos = y - t * size * 2; // Monte vers le haut
+          const xOffset = Math.cos(angle) * radius * 0.4;
+          
+          tornadoGraphics.strokeCircle(x + xOffset, yPos, radius * 0.6);
         }
-        tornadoGraphics.x = 0;
-        tornadoGraphics.y = 0;
+        
+        // Nuages tourbillonnants au sommet
+        graphics.fillStyle(0xffffff, 0.6);
+        for (let i = 0; i < 5; i++) {
+          const cloudAngle = (i / 5) * Math.PI * 2;
+          const cloudRadius = size * 0.5;
+          graphics.fillCircle(
+            x + Math.cos(cloudAngle) * cloudRadius,
+            y - size * 2,
+            size * 0.25
+          );
+        }
+        
+        tornadoGraphics.setDepth(6);
+        
+        // Animation de rotation
         this.tweens.add({
           targets: tornadoGraphics,
           rotation: Math.PI * 2,
-          duration: 2000,
-          repeat: -1
+          duration: 3000,
+          repeat: -1,
+          ease: 'Linear'
         });
+        
+        // Particules de vent tourbillonnantes
+        for (let i = 0; i < 8; i++) {
+          const particle = this.add.circle(
+            x + Phaser.Math.Between(-size, size),
+            y - Phaser.Math.Between(0, size * 2),
+            4, 0xffffff, 0.7
+          );
+          particle.setDepth(7);
+          
+          this.tweens.add({
+            targets: particle,
+            x: x + Math.cos(i * Math.PI / 4) * size,
+            y: y - size * 2,
+            alpha: 0,
+            duration: 2000,
+            delay: i * 250,
+            repeat: -1
+          });
+        }
+        
         createBaseText(x, y + size * 0.9, 'TORNADO');
         break;
 
@@ -943,40 +1148,107 @@ export default class GameScene extends Phaser.Scene {
         break;
 
       case 'iron':
-        // Tour en fer
-        graphics.fillStyle(0x808080, 1);
-        graphics.fillRect(x - size * 0.4, y - size * 0.6, size * 0.8, size * 1.3);
+        // Ombre de la tour
+        graphics.fillStyle(0x000000, 0.3);
+        graphics.fillEllipse(x + size * 0.1, y + size * 0.9, size * 1.4, size * 0.3);
+        
+        // Base de la tour
         graphics.fillStyle(0x696969, 1);
-        graphics.fillRect(x - size * 0.5, y - size * 0.8, size, size * 0.3);
-        graphics.fillRect(x - size * 0.5, y + size * 0.6, size, size * 0.2);
-        // Créneaux
+        graphics.fillRect(x - size * 0.55, y + size * 0.5, size * 1.1, size * 0.3);
+        
+        // Corps principal de la tour (aligné aux créneaux)
+        graphics.fillStyle(0x808080, 1);
+        graphics.fillRect(x - size * 0.5, y - size * 0.6, size, size * 1.1);
+        
+        // Reflets métalliques (côté gauche plus sombre)
+        graphics.fillStyle(0x505050, 0.4);
+        graphics.fillRect(x - size * 0.5, y - size * 0.6, size * 0.3, size * 1.1);
+        
+        // Reflets métalliques (côté droit plus clair)
+        graphics.fillStyle(0xa9a9a9, 0.4);
+        graphics.fillRect(x + size * 0.2, y - size * 0.6, size * 0.3, size * 1.1);
+        
+        // Étage supérieur
+        graphics.fillStyle(0x696969, 1);
+        graphics.fillRect(x - size * 0.5, y - size * 0.85, size, size * 0.25);
+        
+        // Créneaux (5 créneaux bien espacés)
         for (let i = 0; i < 5; i++) {
           graphics.fillStyle(0x505050, 1);
-          graphics.fillRect(x - size * 0.5 + i * (size / 2.5), y - size * 0.9, size / 5, size / 10);
+          graphics.fillRect(x - size * 0.5 + i * (size / 4), y - size * 0.95, size * 0.15, size * 0.1);
         }
-        createBaseText(x, y + size * 0.9, 'IRON TOWER', { color: '#c0c0c0' });
+        
+        // Fenêtres
+        graphics.fillStyle(0x000000, 0.6);
+        for (let i = 0; i < 3; i++) {
+          graphics.fillRect(x - size * 0.2, y - size * 0.4 + i * size * 0.3, size * 0.4, size * 0.15);
+        }
+        
+        createBaseText(x, y + size * 0.95, 'IRON TOWER', { color: '#c0c0c0' });
         break;
 
       case 'gold':
-        // Château en or
-        graphics.fillStyle(0xffd700, 1);
+        // Ombre du château
+        graphics.fillStyle(0x000000, 0.25);
+        graphics.fillEllipse(x, y + size * 0.8, size * 1.8, size * 0.4);
+        
         // Tour centrale
+        graphics.fillStyle(0xffd700, 1);
         graphics.fillRect(x - size * 0.3, y - size * 0.7, size * 0.6, size * 1.4);
+        
+        // Reflets dorés tour centrale
+        graphics.fillStyle(0xb8860b, 0.3);
+        graphics.fillRect(x - size * 0.3, y - size * 0.7, size * 0.15, size * 1.4);
+        graphics.fillStyle(0xffed4e, 0.6);
+        graphics.fillRect(x + size * 0.15, y - size * 0.7, size * 0.15, size * 1.4);
+        
         // Tours latérales
+        graphics.fillStyle(0xffd700, 1);
         graphics.fillRect(x - size * 0.7, y - size * 0.5, size * 0.3, size);
         graphics.fillRect(x + size * 0.4, y - size * 0.5, size * 0.3, size);
-        // Toits
+        
+        // Reflets tours latérales
+        graphics.fillStyle(0xb8860b, 0.3);
+        graphics.fillRect(x - size * 0.7, y - size * 0.5, size * 0.08, size);
+        graphics.fillRect(x + size * 0.4, y - size * 0.5, size * 0.08, size);
+        
+        // Toit principal
         graphics.fillStyle(0xffed4e, 1);
         graphics.beginPath();
-        graphics.moveTo(x, y - size * 0.9);
+        graphics.moveTo(x, y - size * 0.95);
         graphics.lineTo(x - size * 0.4, y - size * 0.7);
         graphics.lineTo(x + size * 0.4, y - size * 0.7);
         graphics.closePath();
         graphics.fillPath();
-        // Ornements
+        
+        // Toits latéraux
+        graphics.fillStyle(0xdaa520, 1);
+        graphics.beginPath();
+        graphics.moveTo(x - size * 0.55, y - size * 0.65);
+        graphics.lineTo(x - size * 0.75, y - size * 0.5);
+        graphics.lineTo(x - size * 0.35, y - size * 0.5);
+        graphics.closePath();
+        graphics.fillPath();
+        
+        graphics.beginPath();
+        graphics.moveTo(x + size * 0.55, y - size * 0.65);
+        graphics.lineTo(x + size * 0.35, y - size * 0.5);
+        graphics.lineTo(x + size * 0.75, y - size * 0.5);
+        graphics.closePath();
+        graphics.fillPath();
+        
+        // Ornements brillants
         graphics.fillStyle(0xff8c00, 1);
-        graphics.fillCircle(x - size * 0.55, y - size * 0.6, size * 0.1);
-        graphics.fillCircle(x + size * 0.55, y - size * 0.6, size * 0.1);
+        graphics.fillCircle(x, y - size * 0.95, size * 0.08);
+        graphics.fillCircle(x - size * 0.55, y - size * 0.65, size * 0.08);
+        graphics.fillCircle(x + size * 0.55, y - size * 0.65, size * 0.08);
+        
+        // Fenêtres
+        graphics.fillStyle(0xff8c00, 0.8);
+        for (let i = 0; i < 2; i++) {
+          graphics.fillRect(x - size * 0.12, y - size * 0.4 + i * size * 0.4, size * 0.24, size * 0.15);
+        }
+        
         createBaseText(x, y + size * 0.9, 'GOLD CASTLE', { color: '#ffed4e' });
         break;
 
@@ -994,6 +1266,20 @@ export default class GameScene extends Phaser.Scene {
     const width = GAME_CONFIG.WORLD_WIDTH;
     const height = GAME_CONFIG.WORLD_HEIGHT;
 
+    // Determine spirit type based on terrain
+    let spiritType = 'default';
+    
+    if (this.currentTerrain) {
+      // Water terrain at level 8+ uses crab spirits
+      if (this.currentTerrain.key === 'water' && playerProgress.level >= 8) {
+        spiritType = 'crab';
+      }
+      // Shadow terrain uses black spirits
+      else if (this.currentTerrain.key === 'shadow') {
+        spiritType = 'shadow_varied';
+      }
+    }
+
     for (let i = 0; i < GAME_CONFIG.SPIRIT_COUNT; i++) {
       let x, y, attempts = 0;
       let validPosition = false;
@@ -1003,20 +1289,31 @@ export default class GameScene extends Phaser.Scene {
         x = Phaser.Math.Between(100, width - 100);
         y = Phaser.Math.Between(100, height - 100);
         
-        // Check if position overlaps with any obstacle
-        const overlapping = this.obstacles.getChildren().some(obstacle => {
-          const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
-          return distance < 80; // Distance raisonnable des obstacles (augmenté de 50 à 80)
-        });
+        // Check if position overlaps with any obstacle (if obstacles exist)
+        if (this.obstacles && this.obstacles.getChildren) {
+          const overlapping = this.obstacles.getChildren().some(obstacle => {
+            const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
+            return distance < 80; // Distance raisonnable des obstacles (augmenté de 50 à 80)
+          });
 
-        if (!overlapping) {
+          if (!overlapping) {
+            validPosition = true;
+          }
+        } else {
+          // No obstacles yet, position is valid
           validPosition = true;
         }
         attempts++;
       }
 
       // If we couldn't find a valid position after 50 attempts, use the last position anyway
-      const spirit = new Spirit(this, x, y, this.configSpiritSpeed);
+      // For shadow terrain, alternate between default and black spirits
+      let actualSpiritType = spiritType;
+      if (spiritType === 'shadow_varied') {
+        actualSpiritType = (i % 2 === 0) ? 'default' : 'black';
+      }
+      
+      const spirit = new Spirit(this, x, y, this.configSpiritSpeed, actualSpiritType);
       this.spirits.push(spirit);
     }
   }
@@ -1044,12 +1341,16 @@ export default class GameScene extends Phaser.Scene {
       x = Phaser.Math.Between(100, width - 100);
       y = Phaser.Math.Between(100, height - 100);
       
-      const overlapping = this.obstacles.getChildren().some(obstacle => {
-        const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
-        return distance < 80;
-      });
+      if (this.obstacles && this.obstacles.getChildren) {
+        const overlapping = this.obstacles.getChildren().some(obstacle => {
+          const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
+          return distance < 80;
+        });
 
-      if (!overlapping) {
+        if (!overlapping) {
+          validPosition = true;
+        }
+      } else {
         validPosition = true;
       }
       attempts++;
@@ -1162,7 +1463,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   animateTerrain() {
-    // Animate water ponds (ondulation)
+    // Animate water ponds (ondulation) - only if obstacles exist
+    if (!this.obstacles || !this.obstacles.getChildren) {
+      return;
+    }
+    
     this.obstacles.getChildren().forEach(obstacle => {
       if (obstacle instanceof Phaser.GameObjects.Ellipse && obstacle.fillColor === 0x4a90e2) {
         this.tweens.add({
@@ -1231,7 +1536,8 @@ export default class GameScene extends Phaser.Scene {
     this.time.delayedCall(300, () => bolt.destroy());
 
     // Check if it hits a tree to set it on fire
-    this.obstacles.getChildren().forEach(obstacle => {
+    if (this.obstacles && this.obstacles.getChildren) {
+      this.obstacles.getChildren().forEach(obstacle => {
       const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
       if (distance < 50 && obstacle instanceof Phaser.GameObjects.Rectangle && obstacle.fillColor === 0x654321) {
         // Tree caught fire!
@@ -1247,9 +1553,15 @@ export default class GameScene extends Phaser.Scene {
         this.time.delayedCall(5000, () => fire.destroy());
       }
     });
+    }
   }
 
   update(time, delta) {
+    // Update terrain hazards
+    if (this.terrainSystem) {
+      this.terrainSystem.update(time, delta, this.players);
+    }
+    
     // Check ENTER key to return to menu when game is over
     if (this.gameOver && Phaser.Input.Keyboard.JustDown(this.enterKey)) {
       this.cleanupScene();
@@ -1407,10 +1719,22 @@ export default class GameScene extends Phaser.Scene {
               player.inTornado = true;
               player.tornadoStartTime = time;
               
-              // Detach all spirits from trapped player
+              // Detach and scatter all spirits from trapped player
               this.spirits.forEach(spirit => {
                 if (spirit.followingPlayer === player) {
-                  spirit.setFollowPlayer(null);
+                  spirit.followingPlayer = null;
+                  
+                  // Scatter away
+                  const scatterAngle = Math.random() * Math.PI * 2;
+                  const scatterDist = Phaser.Math.Between(200, 300);
+                  
+                  this.tweens.add({
+                    targets: spirit,
+                    x: spirit.x + Math.cos(scatterAngle) * scatterDist,
+                    y: spirit.y + Math.sin(scatterAngle) * scatterDist,
+                    duration: 1000,
+                    ease: 'Power2'
+                  });
                 }
               });
             }
@@ -1441,20 +1765,21 @@ export default class GameScene extends Phaser.Scene {
       });
     }
     
-    // Ice zones (freeze players who enter)
+    // Ice zones (immobiliser jusqu'à disparition du pouvoir)
     if (this.iceZones) {
       this.players.forEach(player => {
         let inAnyIceZone = false;
         this.iceZones.forEach(zone => {
-          // Skip if caster or ally (if friendly fire on)
+          // Skip if caster
           if (zone.player && player === zone.player) return;
-          if (this.friendlyFire && zone.player && player.teamId === zone.player.teamId) return;
+          // Skip allies if friendly fire is off
+          if (!this.friendlyFire && zone.player && player.teamId === zone.player.teamId) return;
           
           const dist = Phaser.Math.Distance.Between(player.x, player.y, zone.x, zone.y);
           if (dist < zone.radius) {
             inAnyIceZone = true;
-            if (!player.frozen) {
-              player.frozen = true;
+            if (!player.iceFrozen) {
+              player.iceFrozen = true;
               player.setVelocity(0, 0);
               player.setTint(0x87ceeb);
               // Completely disable movement
@@ -1467,8 +1792,8 @@ export default class GameScene extends Phaser.Scene {
         });
         
         // Unfreeze if no longer in any ice zone
-        if (!inAnyIceZone && player.frozen) {
-          player.frozen = false;
+        if (!inAnyIceZone && player.iceFrozen) {
+          player.iceFrozen = false;
           player.clearTint();
           // Re-enable movement
           if (player.body) {
@@ -1989,12 +2314,16 @@ export default class GameScene extends Phaser.Scene {
       x = Phaser.Math.Between(100, width - 100);
       y = Phaser.Math.Between(100, height - 100);
 
-      const overlapping = this.obstacles.getChildren().some(obstacle => {
-        const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
-        return distance < 50;
-      });
+      if (this.obstacles && this.obstacles.getChildren) {
+        const overlapping = this.obstacles.getChildren().some(obstacle => {
+          const distance = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
+          return distance < 50;
+        });
 
-      if (!overlapping) {
+        if (!overlapping) {
+          validPosition = true;
+        }
+      } else {
         validPosition = true;
       }
       attempts++;

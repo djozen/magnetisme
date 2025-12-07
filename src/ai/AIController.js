@@ -430,12 +430,16 @@ export default class AIController {
       y = Phaser.Math.Between(200, height - 200);
       
       // Vérifie si la position est loin des obstacles
-      const nearObstacle = this.scene.obstacles.getChildren().some(obstacle => {
-        const dist = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
-        return dist < 100;
-      });
-      
-      if (!nearObstacle) {
+      if (this.scene.obstacles && this.scene.obstacles.getChildren) {
+        const nearObstacle = this.scene.obstacles.getChildren().some(obstacle => {
+          const dist = Phaser.Math.Distance.Between(x, y, obstacle.x, obstacle.y);
+          return dist < 100;
+        });
+        
+        if (!nearObstacle) {
+          valid = true;
+        }
+      } else {
         valid = true;
       }
       attempts++;
@@ -453,18 +457,38 @@ export default class AIController {
     let velocityX = Math.cos(angle) * this.playerSpeed;
     let velocityY = Math.sin(angle) * this.playerSpeed;
 
+    // Check for nearby terrain hazards (tornados) to avoid
+    if (this.scene.terrainSystem && this.scene.terrainSystem.hazards) {
+      const nearbyTornados = this.scene.terrainSystem.hazards.filter(hazard => {
+        if (hazard.type !== 'windPower') return false;
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, hazard.x, hazard.y);
+        return dist < (hazard.radius + 150); // Detection range: rayon + 150px
+      });
+      
+      if (nearbyTornados.length > 0) {
+        // Avoid the closest tornado
+        const tornado = nearbyTornados[0];
+        const avoidAngle = Phaser.Math.Angle.Between(tornado.x, tornado.y, this.player.x, this.player.y);
+        // Strong correction to avoid tornados
+        velocityX += Math.cos(avoidAngle) * this.playerSpeed * 1.2;
+        velocityY += Math.sin(avoidAngle) * this.playerSpeed * 1.2;
+      }
+    }
+
     // Check for nearby obstacles to avoid getting stuck
-    const nearbyObstacles = this.scene.obstacles.getChildren().filter(obstacle => {
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, obstacle.x, obstacle.y);
-      return dist < 100; // Detection range
-    });
-    
-    if (nearbyObstacles.length > 0) {
-      const obstacle = nearbyObstacles[0];
-      const avoidAngle = Phaser.Math.Angle.Between(obstacle.x, obstacle.y, this.player.x, this.player.y);
-      // Forte correction pour éviter les obstacles
-      velocityX += Math.cos(avoidAngle) * this.playerSpeed * 0.8;
-      velocityY += Math.sin(avoidAngle) * this.playerSpeed * 0.8;
+    if (this.scene.obstacles && this.scene.obstacles.getChildren) {
+      const nearbyObstacles = this.scene.obstacles.getChildren().filter(obstacle => {
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, obstacle.x, obstacle.y);
+        return dist < 100; // Detection range
+      });
+      
+      if (nearbyObstacles.length > 0) {
+        const obstacle = nearbyObstacles[0];
+        const avoidAngle = Phaser.Math.Angle.Between(obstacle.x, obstacle.y, this.player.x, this.player.y);
+        // Forte correction pour éviter les obstacles
+        velocityX += Math.cos(avoidAngle) * this.playerSpeed * 0.8;
+        velocityY += Math.sin(avoidAngle) * this.playerSpeed * 0.8;
+      }
     }
 
     // Check for nearby allies to avoid collision/blocking

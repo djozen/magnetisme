@@ -80,6 +80,8 @@ export default class Gift extends Phaser.Physics.Arcade.Sprite {
     
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    
+    this.setDepth(8); // Gifts above terrain but below spirits
 
     this.type = type; // 'element', 'time', 'magnetism'
     this.setCollideWorldBounds(true);
@@ -111,7 +113,7 @@ export default class Gift extends Phaser.Physics.Arcade.Sprite {
       color: '#ffffff',
       backgroundColor: '#00000080',
       padding: { x: 3, y: 1 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(8);
   }
 
   static getGlowColor(type) {

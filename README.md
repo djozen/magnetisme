@@ -109,6 +109,11 @@ Each element has a unique power ability:
 ### Gameplay Options
 - **Friendly Fire** - Toggle whether ally players are affected by powers
 - **Gift Power Sharing** - Allow AI teammates to use collected gift powers (5% chance per decision)
+- **Choose Terrain** - Enable terrain selection after choosing your element
+- **Player Speed** - Adjust movement speed for all players (100-400)
+- **Spirit Speed** - Adjust how fast spirits follow players (100-500)
+
+**Note:** Options can be configured in-game or by editing `game-options.json` file. See [GAME-OPTIONS-README.md](./GAME-OPTIONS-README.md) for details.
 
 ### Tips
 - Collect spirits to charge your primary power faster

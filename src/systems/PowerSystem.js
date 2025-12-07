@@ -172,8 +172,9 @@ export class PowerSystem {
             ease: 'Power2'
           });
           
+          // Détache TOUTES les boules des joueurs touchés (sauf soi-même)
           if (other !== player) {
-            this.ejectSpirits(other, 7, angle, 0x0077be);
+            this.detachAllSpirits(other, angle);
           }
         }
       }
@@ -184,7 +185,11 @@ export class PowerSystem {
   icePower(player) {
     const radius = GAME_CONFIG.TILE_SIZE * 1.5;
     
-    // Visual - ice zone for 10 seconds
+    // Durée: 5 secondes + 0.5 seconde par niveau (max 10 secondes)
+    const duration = Math.min(10000, 5000 + (playerProgress.level * 500)); // 5s base + 0.5s par niveau, max 10s
+    const durationSeconds = duration / 1000;
+    
+    // Visual - ice zone
     const ice = this.scene.add.circle(player.x, player.y, radius, 0x87ceeb, 0.5);
     ice.setDepth(100);
     
@@ -194,27 +199,45 @@ export class PowerSystem {
       alpha: { from: 0.5, to: 0.3 },
       duration: 1000,
       yoyo: true,
-      repeat: 9 // 10 seconds total
+      repeat: Math.floor(durationSeconds) - 1
     });
 
-    this.scatterSpirits(player);
+    // Disperser les esprits des joueurs NON-Ice immédiatement (sauf ceux du lanceur)
+    this.scene.spirits.forEach(spirit => {
+      if (spirit.followingPlayer && spirit.followingPlayer !== player && spirit.followingPlayer.element && spirit.followingPlayer.element.key !== 'ice') {
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, spirit.x, spirit.y);
+        if (dist < radius) {
+          spirit.followingPlayer = null;
+          const angle = Math.random() * Math.PI * 2;
+          const distance = GAME_CONFIG.TILE_SIZE;
+          
+          this.scene.tweens.add({
+            targets: spirit,
+            x: spirit.x + Math.cos(angle) * distance,
+            y: spirit.y + Math.sin(angle) * distance,
+            duration: 200,
+            ease: 'Power2'
+          });
+        }
+      }
+    });
 
-    // Create ice zone for 10 seconds
+    // Create ice zone
     const iceZone = {
       x: player.x,
       y: player.y,
       radius: radius,
       graphic: ice,
       player: player,
-      duration: 10000,
+      duration: duration,
       elapsed: 0
     };
     
     if (!this.scene.iceZones) this.scene.iceZones = [];
     this.scene.iceZones.push(iceZone);
     
-    // Remove ice zone after 10 seconds
-    this.scene.time.delayedCall(10000, () => {
+    // Remove ice zone after duration
+    this.scene.time.delayedCall(duration, () => {
       ice.destroy();
       const index = this.scene.iceZones.indexOf(iceZone);
       if (index > -1) this.scene.iceZones.splice(index, 1);
@@ -257,12 +280,18 @@ export class PowerSystem {
     segments.forEach(seg => {
       const wall = this.scene.add.rectangle(seg.x, seg.y, seg.w, seg.h, 0x8b4513, 1);
       wall.setOrigin(0);
+      wall.setDepth(5);
       this.scene.physics.add.existing(wall, true);
-      this.scene.obstacles.add(wall);
+      
+      if (this.scene.obstacles && this.scene.obstacles.add) {
+        this.scene.obstacles.add(wall);
+      }
       
       // Remove after 10 seconds
       this.scene.time.delayedCall(10000, () => {
-        this.scene.obstacles.remove(wall);
+        if (this.scene.obstacles && this.scene.obstacles.remove) {
+          this.scene.obstacles.remove(wall);
+        }
         wall.destroy();
       });
     });
@@ -475,6 +504,26 @@ export class PowerSystem {
     // Don't scatter own spirits - Shadow is not affected by his own power
     // this.scatterSpirits(player);
 
+    // DESIGN AMÉLIORÉ du pouvoir Shadow
+    // Aura violette extérieure
+    const outerGlow = this.scene.add.circle(player.x, player.y, radius + 10, 0x4b0082, 0.3);
+    
+    // Spirale violette
+    const spiral = this.scene.add.graphics();
+    spiral.lineStyle(2, 0x9370db, 0.6);
+    for (let angle = 0; angle < Math.PI * 4; angle += 0.3) {
+      const r = (angle / (Math.PI * 4)) * radius;
+      const x = player.x + Math.cos(angle) * r;
+      const y = player.y + Math.sin(angle) * r;
+      if (angle === 0) {
+        spiral.beginPath();
+        spiral.moveTo(x, y);
+      } else {
+        spiral.lineTo(x, y);
+      }
+    }
+    spiral.strokePath();
+    
     const blackHole = this.scene.add.circle(player.x, player.y, radius, 0x000000, 0.9);
     
     const shadowZone = {
@@ -494,14 +543,26 @@ export class PowerSystem {
     this.scene.shadowZones.push(shadowZone);
     
     this.scene.tweens.add({
-      targets: blackHole,
-      rotation: Math.PI * 10,
+      targets: [blackHole, spiral, outerGlow],
+      rotation: -Math.PI * 8,
       duration: 10000,
       onComplete: () => {
         blackHole.destroy();
+        spiral.destroy();
+        outerGlow.destroy();
         const index = this.scene.shadowZones.indexOf(shadowZone);
         if (index > -1) this.scene.shadowZones.splice(index, 1);
       }
+    });
+    
+    // Pulsation du centre
+    this.scene.tweens.add({
+      targets: blackHole,
+      scale: { from: 1, to: 1.15 },
+      alpha: { from: 0.9, to: 0.7 },
+      duration: 1500,
+      yoyo: true,
+      repeat: 3
     });
   }
 
@@ -515,13 +576,12 @@ export class PowerSystem {
     const playerBase = this.scene.teamBases.find(b => b.teamId === player.teamId);
     if (!playerBase) return;
     
-    // Count spirits following player
+    // Count spirits following player (ils restent attachés et suivent le joueur à la base)
     let spiritCount = 0;
     this.scene.spirits.forEach(spirit => {
       if (spirit.followingPlayer === player) {
         spiritCount++;
-        spirit.setFollowPlayer(null);
-        spirit.setActive(false).setVisible(false);
+        // Les esprits restent attachés et suivent le joueur
       }
     });
     
@@ -545,10 +605,12 @@ export class PowerSystem {
       player.x = playerBase.x;
       player.y = playerBase.y + 80;
       
-      // Add +10 bonus + double points for spirits
+      // Les esprits suivent automatiquement le joueur à sa nouvelle position
+      
+      // Add +10 bonus + points pour les esprits qui restent attachés
       const teamScore = this.scene.teamScores.find(ts => ts.teamId === player.teamId);
       if (teamScore) {
-        teamScore.score += (spiritCount * 2) + 10; // Double points for teleported spirits
+        teamScore.score += (spiritCount * 2) + 10; // Double points pour les esprits téléportés
         this.scene.showNotification(playerBase.x, playerBase.y - 100, `+${(spiritCount * 2) + 10}!`, 0xfffacd);
       }
       
@@ -587,11 +649,13 @@ export class PowerSystem {
             spirit.x, spirit.y
           );
           
-          // Teleport spirits in the light zone to player's base
+          // Teleport spirits in the light zone to player's base (sauf ceux du lanceur)
           if (distToZone < radius) {
-            // Detach from current owner if attached
-            if (spirit.followingPlayer) {
+            // Detach from current owner if attached (sauf si c'est le lanceur)
+            if (spirit.followingPlayer && spirit.followingPlayer !== player) {
               spirit.setFollowPlayer(null);
+            } else if (spirit.followingPlayer === player) {
+              return; // Ne pas téléporter les esprits du lanceur
             }
             
             // Teleport spirit to base with effect
@@ -875,45 +939,40 @@ export class PowerSystem {
     }
   }
 
-  // Leaf: Creates 2 extra spirits
+  // Leaf: Creates permanent spirits based on level, gives level*1 points
   async leafPower(player) {
     if (!this.scene || !this.scene.spirits) return;
     
-    this.scatterSpirits(player);
-
-    // Drop current spirits
-    this.scene.spirits.forEach(spirit => {
-      if (spirit.followingPlayer === player) {
-        spirit.setFollowPlayer(null);
-      }
-    });
-
-    // Create 2 temporary spirits
-    const spiritCount = 2;
+    // Get player level (AI players are level 1)
+    const playerLevel = player.isAI ? 1 : playerProgress.level;
+    const spiritCount = playerLevel; // 1 spirit per level
+    const bonusPoints = playerLevel; // 1 point per level
+    
+    // Grant bonus points to team
+    const playerBase = this.scene.teamBases.find(b => b.teamId === player.teamId);
+    if (playerBase) {
+      playerBase.score += bonusPoints;
+    }
     
     // Import Spirit class dynamically
     const { default: Spirit } = await import('../entities/Spirit.js');
     
     for (let i = 0; i < spiritCount; i++) {
       const angle = (i / spiritCount) * Math.PI * 2;
-      const dist = Phaser.Math.Between(50, 150);
+      const dist = 80;
       const x = player.x + Math.cos(angle) * dist;
       const y = player.y + Math.sin(angle) * dist;
       
-      // Créer un esprit temporaire
-      const tempSpirit = new Spirit(this.scene, x, y);
-      this.scene.spirits.push(tempSpirit);
-      tempSpirit.temporary = true;
+      // Créer un esprit PERMANENT (pas temporaire)
+      const newSpirit = new Spirit(this.scene, x, y);
+      this.scene.spirits.push(newSpirit);
       
-      // Auto-destruction après 30 secondes
-      this.scene.time.delayedCall(30000, () => {
-        if (tempSpirit && tempSpirit.active) {
-          const index = this.scene.spirits.indexOf(tempSpirit);
-          if (index > -1) this.scene.spirits.splice(index, 1);
-          tempSpirit.destroy();
-        }
-      });
+      // Attacher directement au joueur
+      const currentSpiritsCount = this.scene.spirits.filter(s => s.followingPlayer === player).length;
+      newSpirit.setFollowPlayer(player, currentSpiritsCount + i);
     }
+    
+    this.scene.showNotification(player.x, player.y, `+${spiritCount} Spirits! +${bonusPoints}pts`, 0x228b22);
   }
 
   scatterSpirits(player) {

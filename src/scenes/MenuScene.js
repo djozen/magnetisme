@@ -1,26 +1,31 @@
 import Phaser from 'phaser';
 import { ELEMENTS, GAME_CONFIG } from '../config.js';
 import { playerProgress } from '../systems/PlayerProgress.js';
+import { TERRAINS } from '../systems/TerrainSystem.js';
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' });
     this.selectedPlayers = [];
+    this.selectedTerrain = null;
+    this.canChooseTerrain = false;
   }
 
-  create() {
+  async create() {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
     
     // Load player progress
     playerProgress.load();
     
-    // Options
-    this.friendlyFire = false; // Allies are NOT affected by powers
-    this.giftPowerSharing = false; // Allies can NOT use gift powers by default
-    this.playerSpeed = GAME_CONFIG.PLAYER_SPEED; // Vitesse des personnages (IA et contrôlés)
-    this.spiritSpeed = GAME_CONFIG.SPIRIT_FOLLOW_SPEED; // Vitesse de suivi des esprits
-
+    // In debug mode, set level to DEBUG_LEVEL to unlock all elements/terrains
+    if (GAME_CONFIG.DEBUG_MODE && playerProgress.level < GAME_CONFIG.DEBUG_LEVEL) {
+      playerProgress.level = GAME_CONFIG.DEBUG_LEVEL;
+    }
+    
+    // Load saved options from game-options.json
+    await this.loadOptions();
+    
     // Natural background
     const sky = this.add.graphics();
     sky.fillGradientStyle(0x87CEEB, 0x87CEEB, 0x98D8C8, 0x98D8C8, 1);
@@ -197,6 +202,7 @@ export default class MenuScene extends Phaser.Scene {
     this.checkboxBg1.on('pointerdown', () => {
       this.friendlyFire = !this.friendlyFire;
       this.checkboxCheck1.setVisible(this.friendlyFire);
+      this.saveOptions();
     });
     
     // Option 2: Gift Power Sharing (allies can use gift powers)
@@ -222,7 +228,70 @@ export default class MenuScene extends Phaser.Scene {
     this.checkboxBg2.on('pointerdown', () => {
       this.giftPowerSharing = !this.giftPowerSharing;
       this.checkboxCheck2.setVisible(this.giftPowerSharing);
+      this.saveOptions();
     });
+
+    // Terrain selection option (discrete, at bottom left)
+    const terrainOptX = 150;
+    const terrainOptY = height - 80;
+    
+    // Checkbox for terrain choice
+    const checkboxBg = this.add.rectangle(terrainOptX, terrainOptY, 20, 20, 0x333333)
+      .setStrokeStyle(2, 0xffffff)
+      .setInteractive({ useHandCursor: true });
+    
+    const checkmark = this.add.text(terrainOptX, terrainOptY, '✓', {
+      fontSize: '16px',
+      color: '#00ff00'
+    }).setOrigin(0.5).setVisible(this.canChooseTerrain);
+    
+    this.add.text(terrainOptX + 30, terrainOptY, 'Choose Terrain', {
+      fontSize: '14px',
+      color: '#cccccc'
+    }).setOrigin(0, 0.5);
+    
+    checkboxBg.on('pointerdown', () => {
+      this.canChooseTerrain = !this.canChooseTerrain;
+      checkmark.setVisible(this.canChooseTerrain);
+      this.saveOptions();
+    });
+
+    // Save Options Button
+    const saveButtonX = terrainOptX;
+    const saveButtonY = terrainOptY + 35;
+    
+    const saveButton = this.add.rectangle(saveButtonX, saveButtonY, 140, 25, 0x4a7c2f)
+      .setStrokeStyle(2, 0x6b9d47)
+      .setInteractive({ useHandCursor: true });
+    
+    const saveButtonText = this.add.text(saveButtonX, saveButtonY, '💾 Save Options', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    saveButton.on('pointerover', () => {
+      saveButton.setFillStyle(0x5d8a3a);
+      saveButton.setScale(1.05);
+      saveButtonText.setScale(1.05);
+    });
+    
+    saveButton.on('pointerout', () => {
+      saveButton.setFillStyle(0x4a7c2f);
+      saveButton.setScale(1);
+      saveButtonText.setScale(1);
+    });
+    
+    saveButton.on('pointerdown', () => {
+      this.downloadOptionsFile();
+    });
+    
+    // Info text below save button
+    this.add.text(saveButtonX, saveButtonY + 18, 'Downloads updated file', {
+      fontSize: '10px',
+      color: '#999999',
+      align: 'center'
+    }).setOrigin(0.5);
 
     // Slider 1: Player Speed
     const slider1X = width / 2 + 150;
@@ -274,6 +343,13 @@ export default class MenuScene extends Phaser.Scene {
       }
     });
     
+    this.input.on('dragend', (pointer, gameObject) => {
+      // Save options when slider is released
+      if (gameObject === this.playerSpeedHandle || gameObject === this.spiritSpeedHandle) {
+        this.saveOptions();
+      }
+    });
+    
     // Slider 2: Spirit Speed
     const slider2X = slider1X;
     const slider2Y = height - 10;
@@ -301,16 +377,136 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   selectElement(element) {
-    // Start game with selected element
+    // Store selected element
+    this.selectedElement = element;
+    
+    // If terrain choice is enabled, show terrain selection
+    if (this.canChooseTerrain) {
+      this.showTerrainSelection();
+    } else {
+      // Start game directly
+      this.startGame();
+    }
+  }
+  
+  startGame() {
+    // Start game with selected element and terrain
     this.scene.start('GameScene', { 
-      playerElement: element,
+      playerElement: this.selectedElement,
       playerCount: 1, // Human player count, AI will fill the rest
       friendlyFire: this.friendlyFire,
       giftPowerSharing: this.giftPowerSharing,
       debugMode: GAME_CONFIG.DEBUG_MODE,
       playerSpeed: this.playerSpeed,
-      spiritSpeed: this.spiritSpeed
+      spiritSpeed: this.spiritSpeed,
+      selectedTerrain: this.selectedTerrain
     });
+  }
+
+  showTerrainSelection() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    
+    // Semi-transparent overlay
+    this.terrainOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.8)
+      .setOrigin(0)
+      .setDepth(1000);
+    
+    // Title
+    this.add.text(width / 2, 100, 'SELECT TERRAIN', {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1001);
+    
+    // Terrain grid
+    const terrains = Object.values(TERRAINS);
+    const cols = 4;
+    const startX = width / 2 - 300;
+    const startY = 180;
+    const spacing = 150;
+    
+    this.terrainButtons = [];
+    
+    let visibleIndex = 0;
+    terrains.forEach((terrain, index) => {
+      const isUnlocked = GAME_CONFIG.DEBUG_MODE || playerProgress.level >= terrain.requiredLevel;
+      
+      if (!isUnlocked && !GAME_CONFIG.DEBUG_MODE) return;
+      
+      const row = Math.floor(visibleIndex / cols);
+      const col = visibleIndex % cols;
+      const x = startX + col * spacing;
+      const y = startY + row * spacing;
+      
+      // Terrain button background
+      const button = this.add.rectangle(x, y, 120, 100, 0x444444)
+        .setStrokeStyle(2, 0xffffff)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(1001);
+      
+      // Terrain name
+      this.add.text(x, y - 30, terrain.name, {
+        fontSize: '12px',
+        color: '#ffffff',
+        wordWrap: { width: 110 }
+      }).setOrigin(0.5).setDepth(1002);
+      
+      // Required level
+      this.add.text(x, y + 35, `Level ${terrain.requiredLevel}`, {
+        fontSize: '10px',
+        color: '#ffff00'
+      }).setOrigin(0.5).setDepth(1002);
+      
+      button.on('pointerover', () => {
+        button.setStrokeStyle(3, 0x00ff00);
+      });
+      
+      button.on('pointerout', () => {
+        button.setStrokeStyle(2, this.selectedTerrain === terrain ? 0x00ff00 : 0xffffff);
+      });
+      
+      button.on('pointerdown', () => {
+        this.selectedTerrain = terrain;
+        // Update all buttons
+        this.terrainButtons.forEach(b => {
+          b.button.setStrokeStyle(2, 0xffffff);
+        });
+        button.setStrokeStyle(3, 0x00ff00);
+        
+        // Start game after terrain selection
+        this.hideTerrainSelection();
+        this.startGame();
+      });
+      
+      this.terrainButtons.push({ button, terrain });
+      visibleIndex++;
+    });
+    
+    // Close button (Cancel)
+    const closeBtn = this.add.text(width / 2, height - 80, 'CANCEL', {
+      fontSize: '24px',
+      color: '#ffffff',
+      backgroundColor: '#ff0000',
+      padding: { x: 20, y: 10 }
+    }).setOrigin(0.5).setDepth(1001).setInteractive({ useHandCursor: true });
+    
+    closeBtn.on('pointerdown', () => {
+      this.hideTerrainSelection();
+    });
+  }
+
+  hideTerrainSelection() {
+    if (this.terrainOverlay) {
+      // Destroy all terrain selection UI
+      this.children.list.forEach(child => {
+        if (child.depth >= 1000) {
+          child.destroy();
+        }
+      });
+      this.terrainOverlay = null;
+      this.terrainButtons = [];
+    }
   }
 
   createBackgroundTrees(width, height) {
@@ -336,5 +532,111 @@ export default class MenuScene extends Phaser.Scene {
     // Foliage
     const foliage1 = this.add.circle(x, y - 20 * scale, 25 * scale, 0x2d5016, 0.8);
     const foliage2 = this.add.circle(x, y - 30 * scale, 20 * scale, 0x4a7c2f, 0.8);
+  }
+
+  // Load saved options from game-options.json
+  async loadOptions() {
+    try {
+      const response = await fetch('/game-options.json');
+      if (response.ok) {
+        const options = await response.json();
+        this.friendlyFire = options.friendlyFire || false;
+        this.giftPowerSharing = options.giftPowerSharing || false;
+        this.canChooseTerrain = options.canChooseTerrain || false;
+        this.playerSpeed = options.playerSpeed || GAME_CONFIG.PLAYER_SPEED;
+        this.spiritSpeed = options.spiritSpeed || GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+      } else {
+        this.setDefaultOptions();
+      }
+    } catch (e) {
+      console.error('Error loading options from file:', e);
+      console.log('Using default options. You can create/edit game-options.json to customize.');
+      this.setDefaultOptions();
+    }
+  }
+
+  setDefaultOptions() {
+    this.friendlyFire = false;
+    this.giftPowerSharing = false;
+    this.canChooseTerrain = false;
+    this.playerSpeed = GAME_CONFIG.PLAYER_SPEED;
+    this.spiritSpeed = GAME_CONFIG.SPIRIT_FOLLOW_SPEED;
+  }
+
+  // Save options to game-options.json
+  saveOptions() {
+    const options = {
+      friendlyFire: this.friendlyFire,
+      giftPowerSharing: this.giftPowerSharing,
+      canChooseTerrain: this.canChooseTerrain,
+      playerSpeed: this.playerSpeed,
+      spiritSpeed: this.spiritSpeed
+    };
+    
+    // Display options in console for manual editing
+    console.log('=== GAME OPTIONS ===');
+    console.log('To customize, edit the file: game-options.json');
+    console.log('Current settings:', JSON.stringify(options, null, 2));
+    console.log('===================');
+    
+    // Note: We can't write to file from browser, but we can copy from localStorage
+    // Save to localStorage as backup
+    try {
+      localStorage.setItem('elementalSpiritsOptions', JSON.stringify(options));
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+  }
+
+  // Download options as game-options.json file
+  downloadOptionsFile() {
+    const options = {
+      friendlyFire: this.friendlyFire,
+      giftPowerSharing: this.giftPowerSharing,
+      canChooseTerrain: this.canChooseTerrain,
+      playerSpeed: this.playerSpeed,
+      spiritSpeed: this.spiritSpeed
+    };
+    
+    // Create JSON content with nice formatting
+    const jsonContent = JSON.stringify(options, null, 2);
+    
+    // Create blob and download
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'game-options.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Show confirmation
+    const confirmText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      '✓ Options saved to game-options.json\nReplace the file in your game folder',
+      {
+        fontSize: '24px',
+        color: '#00ff00',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(2000);
+    
+    // Fade out confirmation after 3 seconds
+    this.tweens.add({
+      targets: confirmText,
+      alpha: 0,
+      duration: 1000,
+      delay: 2000,
+      onComplete: () => confirmText.destroy()
+    });
+    
+    console.log('✓ Options file downloaded! Replace game-options.json in your game folder.');
+    console.log('Downloaded content:', jsonContent);
   }
 }

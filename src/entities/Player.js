@@ -44,6 +44,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Visual enhancements
     this.setScale(1);
+    this.setDepth(10); // Players above terrain and obstacles
 
     // Create name tag with team info
     this.nameText = scene.add.text(x, y - 35, `${element.name} (T${teamId + 1})`, {
@@ -52,7 +53,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       color: '#ffffff',
       backgroundColor: '#00000080',
       padding: { x: 4, y: 2 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(11); // Above player
 
     // Create particle trail
     this.createTrail(scene);
