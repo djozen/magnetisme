@@ -44,7 +44,7 @@ export const GAME_CONFIG = {
   GIFT_POWER_KEY: 'CTRL',  // Key to activate gift powers (default: CTRL)
   MAX_GIFT_POWERS: 3,  // Maximum number of gift powers that can be held simultaneously (1-3)
   DEBUG_MODE: true,  // Debug mode: show all elements, next level info, unlimited powers
-  DEBUG_LEVEL: 21  // Niveau en mode debug (1-20, affecte l'agressivité des IA)
+  DEBUG_LEVEL: 1  // Niveau en mode debug (1-20, affecte l'agressivité des IA)
 };
 
 export const TEAM_COLORS = [

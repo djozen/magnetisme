@@ -130,6 +130,9 @@ export class TerrainSystem {
     this.hazards = []; // Interactive terrain hazards
     this.effects = []; // Visual effects
     this.decorations = []; // Decorative elements
+    this.mirrors = []; // Glass terrain mirrors
+    this.playerReflections = []; // Player reflections on floor
+    this.mirrorReflections = []; // Player reflections in mirrors
   }
 
   // Determine terrain based on game rules
@@ -171,7 +174,7 @@ export class TerrainSystem {
 
   // Create complete terrain
   createTerrain(terrain, width, height, basePositions = []) {
-    this.currentTerrain = terrain;
+    this.currentTerrain = terrain.key; // Store terrain key for updates
     // Store base positions to check when creating obstacles
     this.basePositions = basePositions;
     this.clearTerrain();
@@ -1900,15 +1903,223 @@ export class TerrainSystem {
   // WIND TERRAIN - Base naturelle visible avec tornades
   // GLASS TERRAIN - Mirror castle (vrai terrain glass)
   createGlassTerrain(width, height) {
-    // Reflective white/blue floor
+    // Lighter reflective floor with mirror effect (gris clair brillant)
     const floor = this.scene.add.graphics();
-    floor.fillGradientStyle(0xf0ffff, 0xe6f3ff, 0xf0ffff, 0xe6f3ff, 1);
+    floor.fillGradientStyle(0xc0d0e0, 0xb0c0d0, 0xc0d0e0, 0xb0c0d0, 1);
     floor.fillRect(0, 0, width, height);
     floor.setDepth(0);
     this.effects.push(floor);
 
-    // Sparkles and mirror obstacles would go here
-    // (simplified for now to avoid conflicts)
+    // Reflective shine pattern on floor (plus visibles)
+    for (let i = 0; i < 100; i++) {
+      const shimmerX = Phaser.Math.Between(0, width);
+      const shimmerY = Phaser.Math.Between(0, height);
+      
+      const shimmer = this.scene.add.circle(shimmerX, shimmerY, Phaser.Math.Between(2, 5), 0xffffff, 0.5);
+      shimmer.setDepth(1);
+      
+      this.scene.tweens.add({
+        targets: shimmer,
+        alpha: 0.2,
+        duration: Phaser.Math.Between(1000, 2000),
+        yoyo: true,
+        repeat: -1
+      });
+      
+      this.effects.push(shimmer);
+    }
+    
+    console.log('Glass terrain created - reflections will be enabled');
+
+    // Glass furniture types (obstacles)
+    const glassFurnitureTypes = [
+      // Glass Chair
+      () => {
+        const chair = this.scene.add.graphics();
+        chair.fillStyle(0x8888ff, 0.4);
+        chair.lineStyle(3, 0xaaaaff, 0.8);
+        // Seat
+        chair.strokeRect(-15, 0, 30, 20);
+        chair.fillRect(-15, 0, 30, 20);
+        // Backrest
+        chair.strokeRect(-15, -25, 30, 25);
+        chair.fillRect(-15, -25, 30, 25);
+        // Legs
+        chair.lineStyle(2, 0xaaaaff, 0.8);
+        chair.lineBetween(-12, 20, -12, 32);
+        chair.lineBetween(7, 20, 7, 32);
+        // Shine effect
+        chair.fillStyle(0xffffff, 0.3);
+        chair.fillRect(-12, -20, 24, 8);
+        return chair;
+      },
+      // Glass Desk
+      () => {
+        const desk = this.scene.add.graphics();
+        desk.fillStyle(0x8888ff, 0.4);
+        desk.lineStyle(3, 0xaaaaff, 0.8);
+        // Desktop
+        desk.strokeRect(-30, -15, 60, 30);
+        desk.fillRect(-30, -15, 60, 30);
+        // Legs
+        desk.lineStyle(2, 0xaaaaff, 0.8);
+        desk.lineBetween(-28, 15, -28, 30);
+        desk.lineBetween(22, 15, 22, 30);
+        // Glass shine
+        desk.fillStyle(0xffffff, 0.4);
+        desk.fillRect(-25, -12, 50, 5);
+        return desk;
+      },
+      // Glass Table
+      () => {
+        const table = this.scene.add.graphics();
+        table.fillStyle(0x8888ff, 0.4);
+        table.lineStyle(3, 0xaaaaff, 0.8);
+        // Tabletop
+        table.strokeRect(-35, -5, 70, 10);
+        table.fillRect(-35, -5, 70, 10);
+        // Legs
+        table.lineStyle(2, 0xaaaaff, 0.8);
+        table.lineBetween(-32, 5, -32, 25);
+        table.lineBetween(24, 5, 24, 25);
+        // Reflective surface
+        table.fillStyle(0xffffff, 0.5);
+        table.fillRect(-35, -5, 70, 3);
+        return table;
+      },
+      // Glass Bed
+      () => {
+        const bed = this.scene.add.graphics();
+        bed.fillStyle(0x8888ff, 0.4);
+        bed.lineStyle(3, 0xaaaaff, 0.8);
+        // Mattress
+        bed.strokeRect(-40, -10, 80, 35);
+        bed.fillRect(-40, -10, 80, 35);
+        // Headboard
+        bed.strokeRect(-40, -30, 10, 30);
+        bed.fillRect(-40, -30, 10, 30);
+        // Footboard
+        bed.strokeRect(30, -20, 10, 30);
+        bed.fillRect(30, -20, 10, 30);
+        // Glass shine
+        bed.fillStyle(0xffffff, 0.4);
+        bed.fillRect(-40, -10, 80, 5);
+        return bed;
+      },
+      // Glass Bench
+      () => {
+        const bench = this.scene.add.graphics();
+        bench.fillStyle(0x8888ff, 0.4);
+        bench.lineStyle(3, 0xaaaaff, 0.8);
+        // Seat
+        bench.strokeRect(-40, -8, 80, 16);
+        bench.fillRect(-40, -8, 80, 16);
+        // Legs
+        bench.lineStyle(2, 0xaaaaff, 0.8);
+        bench.lineBetween(-35, 8, -35, 26);
+        bench.lineBetween(25, 8, 25, 26);
+        // Reflective highlights
+        bench.fillStyle(0xffffff, 0.5);
+        for (let i = 0; i < 5; i++) {
+          bench.fillCircle(-30 + i * 15, 0, 3);
+        }
+        return bench;
+      }
+    ];
+
+    // Mirror types - ONLY SQUARE mirrors, lighter and more reflective
+    const mirrorTypes = [
+      // Square mirror - light and reflective
+      (x, y, size) => {
+        const mirror = this.scene.add.graphics();
+        mirror.setPosition(x, y);
+        // Silver frame
+        mirror.lineStyle(5, 0xc0c0c0, 1);
+        mirror.strokeRect(-size, -size, size * 2, size * 2);
+        // Light reflective glass surface
+        mirror.fillStyle(0xd0e0f0, 0.7);
+        mirror.fillRect(-size + 5, -size + 5, size * 2 - 10, size * 2 - 10);
+        // Bright shine
+        mirror.fillStyle(0xffffff, 0.6);
+        mirror.fillRect(-size * 0.7, -size * 0.7, size * 0.8, size * 0.8);
+        // Edge highlights
+        mirror.lineStyle(2, 0xffffff, 0.5);
+        mirror.strokeRect(-size + 5, -size + 5, size * 2 - 10, size * 2 - 10);
+        return { graphics: mirror, x, y, size, shape: 'square' };
+      }
+    ];
+
+    // Create 12-18 mirrors of various shapes (obstacles with reflections)
+    const numMirrors = Phaser.Math.Between(12, 18);
+    this.mirrors = []; // Store mirrors for reflection updates
+    
+    for (let i = 0; i < numMirrors; i++) {
+      let mirrorX, mirrorY, attempts = 0;
+      let validPosition = false;
+      
+      // Try to find valid position away from bases
+      const tileSize = GAME_CONFIG.TILE_SIZE || 80;
+      const minDistanceFromBase = tileSize * 2;
+      
+      while (!validPosition && attempts < 50) {
+        mirrorX = Phaser.Math.Between(100, width - 100);
+        mirrorY = Phaser.Math.Between(100, height - 100);
+        
+        if (!this.isNearBase(mirrorX, mirrorY, minDistanceFromBase)) {
+          validPosition = true;
+        }
+        attempts++;
+      }
+      
+      if (!validPosition) continue;
+      
+      // Random size and type
+      const mirrorSize = Phaser.Math.Between(30, 60);
+      const mirrorType = Phaser.Utils.Array.GetRandom(mirrorTypes);
+      const mirrorObj = mirrorType(mirrorX, mirrorY, mirrorSize);
+      
+      mirrorObj.graphics.setDepth(5);
+      this.effects.push(mirrorObj.graphics);
+      this.mirrors.push(mirrorObj);
+      
+      // Create obstacle for mirror
+      const obstacleSize = mirrorObj.shape === 'tall' ? mirrorSize * 1.2 : mirrorSize;
+      const obstacle = this.scene.add.circle(mirrorX, mirrorY, obstacleSize, 0x000000, 0);
+      this.addObstacle(obstacle);
+    }
+
+    // Create 15-20 glass furniture obstacles
+    const numFurniture = Phaser.Math.Between(15, 20);
+    const tileSize = GAME_CONFIG.TILE_SIZE || 80;
+    const minDistanceFromBase = tileSize * 2;
+    
+    for (let i = 0; i < numFurniture; i++) {
+      let furnitureX, furnitureY, attempts = 0;
+      let validPosition = false;
+      
+      while (!validPosition && attempts < 50) {
+        furnitureX = Phaser.Math.Between(100, width - 100);
+        furnitureY = Phaser.Math.Between(100, height - 100);
+        
+        if (!this.isNearBase(furnitureX, furnitureY, minDistanceFromBase)) {
+          validPosition = true;
+        }
+        attempts++;
+      }
+      
+      if (!validPosition) continue;
+      
+      const furnitureType = Phaser.Utils.Array.GetRandom(glassFurnitureTypes);
+      const furniture = furnitureType();
+      furniture.setPosition(furnitureX, furnitureY);
+      furniture.setDepth(5);
+      
+      this.effects.push(furniture);
+      
+      // Create obstacle
+      const obstacle = this.scene.add.circle(furnitureX, furnitureY, 40, 0x000000, 0);
+      this.addObstacle(obstacle);
+    }
   }
 
   // SAND TERRAIN - Desert (vrai terrain sand)
@@ -5171,6 +5382,13 @@ export class TerrainSystem {
 
   // Update terrain hazards each frame
   update(time, delta, players) {
+    // Debug log every 60 frames
+    if (!this.updateCounter) this.updateCounter = 0;
+    this.updateCounter++;
+    if (this.updateCounter % 60 === 0) {
+      console.log(`TerrainSystem update - currentTerrain: ${this.currentTerrain}, players: ${players ? players.length : 0}`);
+    }
+    
     this.hazards.forEach(hazard => {
       if (hazard.update) {
         hazard.update(time, delta, players);
@@ -5362,6 +5580,16 @@ export class TerrainSystem {
         });
       }
     });
+    
+    // Update player reflections for glass terrain
+    if (this.updateCounter % 60 === 0 && this.currentTerrain === 'glass') {
+      console.log('About to check glass reflections...');
+    }
+    
+    if (this.currentTerrain === 'glass' && players) {
+      console.log(`Updating glass reflections for ${players.length} players`);
+      this.updateGlassReflections(players);
+    }
   }
 
   // Volcanic eruption hazard for Fire terrain
@@ -5472,5 +5700,68 @@ export class TerrainSystem {
         }
       });
     }
+  }
+  
+  updateGlassReflections(players) {
+    // Clean up old reflections
+    if (this.playerReflections) {
+      this.playerReflections.forEach(ref => {
+        if (ref && ref.destroy) ref.destroy();
+      });
+    }
+    this.playerReflections = [];
+    
+    // Clean up old mirror reflections
+    if (this.mirrorReflections) {
+      this.mirrorReflections.forEach(ref => {
+        if (ref && ref.destroy) ref.destroy();
+      });
+    }
+    this.mirrorReflections = [];
+    
+    if (!players || players.length === 0) return;
+    
+    players.forEach(player => {
+      if (!player.active || !player.texture) return;
+      
+      // Floor reflection - sprite inversé verticalement avec transparence
+      const floorReflection = this.scene.add.sprite(
+        player.x, 
+        player.y + 45, // Offset below player
+        player.texture.key
+      );
+      floorReflection.setDepth(9);
+      floorReflection.setAlpha(0.4);
+      floorReflection.setFlipY(true); // Inversion verticale
+      floorReflection.setTint(0xc0d0e0); // Teinte bleutée du sol
+      floorReflection.setScale(player.scaleX, player.scaleY);
+      this.playerReflections.push(floorReflection);
+      
+      // Mirror reflections - sprite inversé avec effet miroir
+      if (this.mirrors) {
+        this.mirrors.forEach(mirror => {
+          const dist = Phaser.Math.Distance.Between(player.x, player.y, mirror.x, mirror.y);
+          const reflectionRange = mirror.size * 4;
+          
+          if (dist < reflectionRange) {
+            const angle = Phaser.Math.Angle.Between(mirror.x, mirror.y, player.x, player.y);
+            const reflectedX = mirror.x - Math.cos(angle) * dist * 0.3;
+            const reflectedY = mirror.y - Math.sin(angle) * dist * 0.3;
+            
+            const mirrorReflection = this.scene.add.sprite(
+              reflectedX,
+              reflectedY,
+              player.texture.key
+            );
+            mirrorReflection.setDepth(7);
+            mirrorReflection.setAlpha(0.6);
+            mirrorReflection.setFlipX(true); // Inversion horizontale pour effet miroir
+            mirrorReflection.setTint(0xd0e0f0); // Teinte du miroir
+            mirrorReflection.setScale(player.scaleX * 0.9, player.scaleY * 0.9);
+            this.mirrorReflections.push(mirrorReflection);
+          }
+        });
+      }
+    });
   }
 }
