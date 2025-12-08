@@ -770,26 +770,3 @@ export default class MenuScene extends Phaser.Scene {
     });
   }
 }
-      {
-        fontSize: '24px',
-        color: '#00ff00',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 4,
-        align: 'center'
-      }
-    ).setOrigin(0.5).setDepth(2000);
-    
-    // Fade out confirmation after 3 seconds
-    this.tweens.add({
-      targets: confirmText,
-      alpha: 0,
-      duration: 1000,
-      delay: 2000,
-      onComplete: () => confirmText.destroy()
-    });
-    
-    console.log('✓ Options file downloaded! Replace game-options.json in your game folder.');
-    console.log('Downloaded content:', jsonContent);
-  }
-}
