@@ -8,6 +8,8 @@ Parcourez **18 chapitres** (17 éléments + boss final) avec **4-6 niveaux** cha
 
 ## 📋 Structure des Chapitres
 
+**IMPORTANT** : Le joueur ne passera **JAMAIS** par le chapitre de son propre élément. Par exemple, si vous jouez avec l'élément Fire, vous ne verrez pas le chapitre Fire dans la sélection.
+
 ### Chapitres 1-17 (Éléments)
 1. **Earth** - Cavernes souterraines
 2. **Fire** - Royaume volcanique
@@ -35,23 +37,38 @@ Parcourez **18 chapitres** (17 éléments + boss final) avec **4-6 niveaux** cha
 Chaque chapitre contient **5 niveaux** :
 
 - **Niveaux 1-3** : Niveaux normaux avec difficulté progressive
-- **Niveau 4** : Boss intermédiaire de l'élément
-- **Niveau 5 (avant-dernier)** : Combat contre un joueur IA de cet élément
-- **Niveau 6 (dernier)** : Boss final original et impressionnant
+- **Niveau 4** : Boss intermédiaire de l'élément du chapitre
+- **Niveau 5 (dernier)** : Boss final original et impressionnant
+
+**Note** : Le boss IA (joueur contrôlé par IA) a été retiré pour simplifier la structure.
 
 ## 👾 Ennemis
 
 ### Ennemis de Base
-Chaque élément possède **2 types d'ennemis** avec comportements uniques :
-- **Terre** : Rock Golem, Tunnel Mole
-- **Feu** : Living Flame, Fire Dragon
-- **Eau** : Water Bubble, Aqua Shark
-- Etc.
+Chaque élément possède **4 types d'ennemis** avec comportements uniques :
+- **Terre** : Rock Golem, Tunnel Mole, Rolling Boulder, Earth Worm
+- **Feu** : Living Flame, Fire Dragon, Flame Imp, Fire Elemental
+- **Eau** : Water Bubble, Aqua Shark, Electric Jellyfish, Tidal Wave
+- **Vent** : Wind Wisp, Mini Tornado, Sky Harpy, Storm Cloud
+- **Nature** : Thorny Vine, Tree Guardian, Spore Mushroom, Forest Fairy
+- **Lightning** : Electric Spark, Thunder Cloud, Electric Eel, Living Bolt
+- **Ice** : Ice Shard, Frost Yeti, Ice Penguin, Frost Crystal
+- **Shadow** : Shadow Wraith, Dark Demon, Nightmare Bat, Living Shadow
+- **Light** : Light Ray, Radiant Angel, Light Prism, Holy Wisp
+- **Metal** : Spinning Blade, Steel Robot, Iron Gear, Auto Turret
+- **Poison** : Toxic Slime, Venom Spider, Toxic Serpent, Venus Flytrap
+- **Psychic** : Mind Orb, Psi Brain, All-Seeing Eye, Poltergeist
+- **Wood** : Wooden Puppet, Forest Spirit, Rolling Log, Wood Archer
+- **Sound** : Sound Wave, Echo Beast, Boom Box, Musical Note
+- **Gold** : Living Coin, Gold Guardian, Golden Statue, Mimic Chest
+- **Glass** : Glass Shard, Crystal Prism, Mirror Image, Crystal Chandelier
+- **Void** : Void Hole, Void Entity, Void Tendril, Entropy Orb
+
+**Total : 68 types d'ennemis**
 
 ### Boss
 - **Boss Intermédiaires** (Niveau 4) : Boss thématique de l'élément
-- **Boss IA** (Avant-dernier niveau) : Joueur contrôlé par IA
-- **Boss Finaux** : Boss originaux impressionnants
+- **Boss Finaux** (Niveau 5) : Boss originaux impressionnants
   - Earthquake Leviathan (Earth)
   - Inferno Phoenix (Fire)
   - Tsunami Serpent (Water)
@@ -125,15 +142,17 @@ En mode debug, vous pouvez :
 - Terminologie : "Balls/Boules" au lieu de "Spirits/Esprits"
 - Gameplay plateforme au lieu d'arène
 - Système de niveaux et chapitres structurés
-- Ennemis et boss uniques par élément
+- **Le joueur ne peut PAS jouer son propre chapitre élémentaire**
+- Ennemis et boss uniques par élément (68 ennemis, 52 boss)
 
 ### Fichiers Principaux
 - `ChapterConfig.js` - Configuration des 18 chapitres
-- `EnemyTypes.js` - Définitions des ennemis (34 types)
-- `BossTypes.js` - Définitions des boss (51 boss + boss ultime)
+- `EnemyTypes.js` - Définitions des ennemis (68 types - 4 par élément)
+- `BossTypes.js` - Définitions des boss (52 boss + boss ultime)
 - `PlatformConfig.js` - Configuration du jeu
 - `PlatformProgress.js` - Système de progression
-- `ChapterSelectScene.js` - Sélection chapitre/niveau
+- `ChapterSelectScene.js` - Sélection de chapitre (exclut l'élément du joueur)
+- `LevelSelectScene.js` - Sélection de niveau
 - `PlatformScene.js` - Scène de jeu principale
 
 ## 🚀 Lancement
