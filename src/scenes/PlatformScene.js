@@ -6,7 +6,7 @@ import { CHAPTERS } from '../platform/ChapterConfig.js';
 import { ENEMY_TYPES } from '../platform/EnemyTypes.js';
 import { BOSS_TYPES } from '../platform/BossTypes.js';
 import { PLATFORM_CONFIG } from '../platform/PlatformConfig.js';
-import PlatformProgress from '../platform/PlatformProgress.js';
+import { PlatformProgress } from '../platform/PlatformProgress.js';
 
 export default class PlatformScene extends Phaser.Scene {
   constructor() {

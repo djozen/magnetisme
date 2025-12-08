@@ -54,6 +54,10 @@ export default class BootScene extends Phaser.Scene {
     particleGraphics.generateTexture('particle', 8, 8);
     particleGraphics.destroy();
 
-    this.scene.start('MenuScene');
+    // Start directly in platform mode menu
+    this.scene.start('ChapterSelectScene', { 
+      element: null, // Will show element selection first
+      directStart: true 
+    });
   }
 }

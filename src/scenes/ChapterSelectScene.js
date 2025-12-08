@@ -11,10 +11,133 @@ export default class ChapterSelectScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.selectedElement = data.selectedElement || ELEMENTS.EARTH;
+    this.selectedElement = data.element || null;
+    this.directStart = data.directStart || false;
   }
 
   create() {
+    // If no element selected, show element selection first
+    if (!this.selectedElement) {
+      this.showElementSelection();
+      return;
+    }
+    
+    this.showChapterSelection();
+  }
+  
+  showElementSelection() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    
+    // Background
+    this.add.rectangle(0, 0, width, height, 0x1a1a1a).setOrigin(0, 0);
+    
+    // Title
+    this.add.text(width / 2, 80, '🏰 PLATFORM MODE', {
+      fontSize: '48px',
+      fontFamily: 'Arial',
+      color: '#ffaa00',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6
+    }).setOrigin(0.5);
+    
+    this.add.text(width / 2, 150, 'Select Your Elemental Hero', {
+      fontSize: '28px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+    
+    // Display elements in grid
+    const elements = Object.values(ELEMENTS);
+    const cols = 6;
+    const startX = 250;
+    const startY = 250;
+    const spacing = 150;
+    
+    elements.forEach((element, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = startX + col * spacing;
+      const y = startY + row * spacing;
+      
+      // Element button
+      const button = this.add.container(x, y);
+      
+      const circle = this.add.circle(0, 0, 40, element.color);
+      circle.setStrokeStyle(4, 0xffffff);
+      
+      const name = this.add.text(0, 60, element.name, {
+        fontSize: '16px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+      
+      button.add([circle, name]);
+      button.setSize(80, 80);
+      button.setInteractive({ useHandCursor: true });
+      
+      button.on('pointerover', () => {
+        circle.setScale(1.2);
+      });
+      
+      button.on('pointerout', () => {
+        circle.setScale(1.0);
+      });
+      
+      button.on('pointerdown', () => {
+        this.selectedElement = element;
+        this.scene.restart({ element: element });
+      });
+    });
+    
+    // Quick Play button - Start first level of first chapter immediately
+    const quickPlayButton = this.add.rectangle(width / 2, height - 100, 300, 60, 0x00aa00);
+    quickPlayButton.setStrokeStyle(4, 0xffffff);
+    quickPlayButton.setInteractive({ useHandCursor: true });
+    
+    const quickPlayText = this.add.text(width / 2, height - 100, '▶ PLAY NOW', {
+      fontSize: '28px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    quickPlayButton.on('pointerover', () => {
+      quickPlayButton.setFillStyle(0x00cc00);
+      quickPlayText.setScale(1.1);
+    });
+    
+    quickPlayButton.on('pointerout', () => {
+      quickPlayButton.setFillStyle(0x00aa00);
+      quickPlayText.setScale(1.0);
+    });
+    
+    quickPlayButton.on('pointerdown', () => {
+      // Select first element by default if none selected
+      const element = this.selectedElement || Object.values(ELEMENTS)[0];
+      
+      // Get first available chapter (not player's element)
+      const allChapters = getChapterList();
+      const firstChapter = allChapters.find(ch => ch.key !== element.key && ch.key !== 'final');
+      
+      if (firstChapter) {
+        // Start first level directly
+        this.scene.start('PlatformScene', {
+          element: element,
+          chapterId: firstChapter.id,
+          levelNumber: 1
+        });
+      }
+    });
+  }
+  
+  showChapterSelection() {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
@@ -83,6 +206,43 @@ export default class ChapterSelectScene extends Phaser.Scene {
 
     // Back button
     this.createBackButton(50, height - 50);
+    
+    // Quick Play button - Start first unlocked chapter/level
+    const quickPlayButton = this.add.rectangle(width - 150, height - 50, 250, 50, 0x00aa00);
+    quickPlayButton.setStrokeStyle(3, 0xffffff);
+    quickPlayButton.setInteractive({ useHandCursor: true });
+    
+    const quickPlayText = this.add.text(width - 150, height - 50, '▶ PLAY', {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    quickPlayButton.on('pointerover', () => {
+      quickPlayButton.setFillStyle(0x00cc00);
+      quickPlayText.setScale(1.1);
+    });
+    
+    quickPlayButton.on('pointerout', () => {
+      quickPlayButton.setFillStyle(0x00aa00);
+      quickPlayText.setScale(1.0);
+    });
+    
+    quickPlayButton.on('pointerdown', () => {
+      // Find first unlocked chapter
+      const firstUnlocked = availableChapters.find(ch => 
+        platformProgress.isChapterUnlocked(ch.key, ch.unlockLevel)
+      );
+      
+      if (firstUnlocked) {
+        this.scene.start('PlatformScene', {
+          element: this.selectedElement,
+          chapterId: firstUnlocked.id,
+          levelNumber: 1
+        });
+      }
+    });
 
     // Instructions
     const instructions = PLATFORM_CONFIG.DEBUG_MODE 
