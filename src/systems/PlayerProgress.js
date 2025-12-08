@@ -16,6 +16,10 @@ export class PlayerProgress {
         this.globalScore = data.globalScore || 0;
         this.level = data.level || 1;
         this.victories = data.victories || 0;
+        
+        // Recalculate level based on score (in case formula changed)
+        this.updateLevel();
+        console.log(`Progress loaded: Score=${this.globalScore}, Level=${this.level}`);
       }
     } catch (error) {
       console.error('Error loading progress:', error);
@@ -47,56 +51,49 @@ export class PlayerProgress {
   }
 
   // Calculate level based on global score
-  // Level 1: 0-249
-  // Level 2: 250-749 (+500)
-  // Level 3: 750-1749 (+1000)
-  // Level 4: 1750-2999 (+1250)
-  // Level 5: 3000-4499 (+1500)
-  // etc. (increment increases by 250 each level)
+  // Level 1: 0-99 (100 points)
+  // Level 2: 100-249 (150 points)
+  // Level 3: 250-449 (200 points)
+  // Level 4: 450-699 (250 points)
+  // Level 5: 700-999 (300 points)
+  // etc. (increment increases by 50 each level)
   updateLevel() {
     let currentLevel = 1;
-    let requiredScore = 0;
-    let increment = 250;
+    let totalRequired = 0;
 
-    while (this.globalScore >= requiredScore) {
-      const nextThreshold = requiredScore + increment;
-      if (this.globalScore >= nextThreshold) {
+    // Continue checking until score doesn't meet next threshold
+    while (true) {
+      // Calculate points needed for next level
+      const pointsForNextLevel = 100 + (currentLevel - 1) * 50;
+      
+      if (this.globalScore >= totalRequired + pointsForNextLevel) {
         currentLevel++;
-        requiredScore = nextThreshold;
-        
-        // Increase increment every level
-        if (currentLevel === 2) increment = 500;
-        else if (currentLevel === 3) increment = 1000;
-        else if (currentLevel >= 4) increment = 1000 + (currentLevel - 3) * 250;
+        totalRequired += pointsForNextLevel;
       } else {
         break;
       }
     }
 
+    const oldLevel = this.level;
     this.level = currentLevel;
+    
+    if (oldLevel !== currentLevel) {
+      console.log(`Level updated: ${oldLevel} -> ${currentLevel} (Score: ${this.globalScore}, Next level at: ${totalRequired + (100 + (currentLevel - 1) * 50)})`);
+    }
   }
 
   // Get score needed for next level
   getScoreForNextLevel() {
-    let requiredScore = 0;
-    let increment = 250;
+    let totalRequired = 0;
 
+    // Calculate total score accumulated up to current level
     for (let i = 1; i < this.level; i++) {
-      if (i === 1) increment = 250;
-      else if (i === 2) increment = 500;
-      else if (i === 3) increment = 1000;
-      else increment = 1000 + (i - 3) * 250;
-      
-      requiredScore += increment;
+      totalRequired += 100 + (i - 1) * 50;
     }
 
-    // Calculate next level threshold
-    if (this.level === 1) increment = 250;
-    else if (this.level === 2) increment = 500;
-    else if (this.level === 3) increment = 1000;
-    else increment = 1000 + (this.level - 3) * 250;
-
-    return requiredScore + increment;
+    // Add points needed for next level
+    const pointsForNextLevel = 100 + (this.level - 1) * 50;
+    return totalRequired + pointsForNextLevel;
   }
 
   // Check if player can use an element based on level
