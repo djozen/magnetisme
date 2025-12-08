@@ -161,6 +161,30 @@ export default class MenuScene extends Phaser.Scene {
       this.elementButtons.push({ button, element, isUnlocked });
     });
 
+    // Platform Mode Button
+    const platformButton = this.add.rectangle(width - 180, 80, 160, 50, 0x4a90e2);
+    platformButton.setStrokeStyle(3, 0xffffff);
+    platformButton.setInteractive({ useHandCursor: true });
+    
+    this.add.text(width - 180, 80, '🏰 Platform Mode', {
+      fontSize: '18px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    platformButton.on('pointerover', () => {
+      platformButton.setFillStyle(0x5aa0f2);
+    });
+    
+    platformButton.on('pointerout', () => {
+      platformButton.setFillStyle(0x4a90e2);
+    });
+    
+    platformButton.on('pointerdown', () => {
+      this.showPlatformModeSelection();
+    });
+
     // Instructions
     this.add.text(width / 2, height - 100, 'Click an element to start the game', {
       fontSize: '20px',
@@ -633,6 +657,119 @@ export default class MenuScene extends Phaser.Scene {
       this.cameras.main.width / 2,
       this.cameras.main.height / 2,
       '✓ Options saved to game-options.json\nReplace the file in your game folder',
+      {
+        fontSize: '20px',
+        color: '#00ff00',
+        backgroundColor: '#000000',
+        padding: { x: 20, y: 10 }
+      }
+    ).setOrigin(0.5).setDepth(2000);
+    
+    this.time.delayedCall(3000, () => confirmText.destroy());
+  }
+  
+  showPlatformModeSelection() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    
+    // Semi-transparent overlay
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.9)
+      .setOrigin(0)
+      .setDepth(1500);
+    
+    // Title
+    this.add.text(width / 2, 100, '🏰 PLATFORM MODE', {
+      fontSize: '48px',
+      fontFamily: 'Arial',
+      color: '#ffaa00',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6
+    }).setOrigin(0.5).setDepth(1501);
+    
+    this.add.text(width / 2, 160, 'Select Your Elemental Hero', {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5).setDepth(1501);
+    
+    // Display elements in grid
+    const elements = Object.values(ELEMENTS);
+    const cols = 6;
+    const startX = 250;
+    const startY = 250;
+    const spacing = 150;
+    
+    elements.forEach((element, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = startX + col * spacing;
+      const y = startY + row * spacing;
+      
+      // Element button
+      const button = this.add.container(x, y);
+      button.setDepth(1501);
+      
+      const circle = this.add.circle(0, 0, 40, element.color);
+      circle.setStrokeStyle(4, 0xffffff);
+      
+      const name = this.add.text(0, 60, element.name, {
+        fontSize: '14px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+      
+      button.add([circle, name]);
+      button.setSize(80, 80);
+      button.setInteractive({ useHandCursor: true });
+      
+      button.on('pointerover', () => {
+        circle.setScale(1.2);
+      });
+      
+      button.on('pointerout', () => {
+        circle.setScale(1.0);
+      });
+      
+      button.on('pointerdown', () => {
+        overlay.destroy();
+        button.destroy();
+        this.scene.start('ChapterSelectScene', { element });
+      });
+    });
+    
+    // Back button
+    const backButton = this.add.rectangle(width / 2, height - 80, 200, 50, 0x666666);
+    backButton.setStrokeStyle(3, 0xffffff);
+    backButton.setInteractive({ useHandCursor: true });
+    backButton.setDepth(1501);
+    
+    this.add.text(width / 2, height - 80, 'Back to Menu', {
+      fontSize: '20px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(1501);
+    
+    backButton.on('pointerover', () => {
+      backButton.setFillStyle(0x888888);
+    });
+    
+    backButton.on('pointerout', () => {
+      backButton.setFillStyle(0x666666);
+    });
+    
+    backButton.on('pointerdown', () => {
+      overlay.destroy();
+      backButton.destroy();
+    });
+  }
+}
       {
         fontSize: '24px',
         color: '#00ff00',
