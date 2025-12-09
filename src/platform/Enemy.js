@@ -1,43 +1,41 @@
 import Phaser from 'phaser';
+import { PlayerShapes } from '../entities/PlayerShapes.js';
 
 export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, enemyType) {
-    // Create enemy texture
+    // Create enemy texture using 8 different designs
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
     
-    // Draw enemy based on type
-    graphics.fillStyle(enemyType.color, 1);
+    // Make enemy color darker
+    const darkerColor = Phaser.Display.Color.IntegerToColor(enemyType.color).darken(20).color;
     
-    // Different shapes for variety
-    const shapeType = Math.floor(Math.random() * 3);
-    switch (shapeType) {
-      case 0: // Circle
-        graphics.fillCircle(15, 15, 12);
-        break;
-      case 1: // Square
-        graphics.fillRect(3, 3, 24, 24);
-        break;
-      case 2: // Triangle
-        graphics.beginPath();
-        graphics.moveTo(15, 3);
-        graphics.lineTo(27, 27);
-        graphics.lineTo(3, 27);
-        graphics.closePath();
-        graphics.fillPath();
-        break;
+    // 8 different enemy designs
+    const shapeNames = ['ROUND', 'SQUARE', 'OVAL', 'STAR', 'TRIANGLE', 'DIAMOND', 'HEXAGON', 'CLOUD'];
+    
+    // Select design based on enemy type for consistency (use hash of key if id not available)
+    const designIndex = (enemyType.id || enemyType.key.length) % shapeNames.length;
+    const shapeName = shapeNames[designIndex];
+    const shapeFunction = PlayerShapes[shapeName];
+    
+    // Draw shape with darker color
+    if (shapeFunction) {
+      shapeFunction(graphics, darkerColor, darkerColor);
+    } else {
+      // Fallback to ROUND if shape not found
+      PlayerShapes.ROUND(graphics, darkerColor, darkerColor);
     }
     
-    // Darker outline
-    graphics.lineStyle(2, 0x000000, 0.8);
-    graphics.strokeCircle(15, 15, 12);
-    
     const key = `enemy_${enemyType.key}_${Date.now()}_${Math.random()}`;
-    graphics.generateTexture(key, 30, 30);
+    graphics.generateTexture(key, 40, 40);
     graphics.destroy();
 
     super(scene, x, y, key);
     
     scene.add.existing(this);
+    scene.physics.add.existing(this);
+    
+    // Scale down the sprite
+    this.setScale(0.75);
     scene.physics.add.existing(this);
 
     this.enemyType = enemyType;
@@ -54,11 +52,15 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.patrolStart = x;
     this.patrolEnd = x + 200;
     this.patrolDirection = 1;
+    
+    // Ground walking behavior (most enemies walk on platforms)
+    this.walkDirection = Math.random() > 0.5 ? 1 : -1;
+    this.canFly = (this.behavior === 'fly_shoot' || this.behavior === 'flying');
 
     // Physics
     this.setBounce(0.2);
     this.setCollideWorldBounds(true);
-    this.setGravityY(enemyType.speed > 100 ? 400 : 800); // Flying enemies less gravity
+    this.setGravityY(this.canFly ? 200 : 800); // Most enemies walk on ground
     this.setDepth(8);
 
     // Create health bar
@@ -116,6 +118,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   patrolBehavior() {
+    // Walk back and forth on platforms (ground enemies only)
+    if (!this.body.touching.down && !this.canFly) {
+      return; // Falling, don't change direction
+    }
+    
     if (this.x >= this.patrolEnd) {
       this.patrolDirection = -1;
       this.setFlipX(true);
@@ -128,6 +135,11 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   chaseBehavior(player) {
+    // Chase player on the ground
+    if (!this.body.touching.down && !this.canFly) {
+      return; // Can't chase while in air
+    }
+    
     const direction = player.x > this.x ? 1 : -1;
     this.setVelocityX(this.enemyType.speed * direction);
     this.setFlipX(direction < 0);

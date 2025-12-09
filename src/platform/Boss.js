@@ -1,34 +1,45 @@
 import Phaser from 'phaser';
+import { PlayerShapes } from '../entities/PlayerShapes.js';
 
 export default class Boss extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, bossType, isFinal = false) {
-    // Create boss texture (larger)
+    // Create boss texture using original game shapes (larger and more impressive)
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
     
     const size = isFinal ? 80 : 60;
-    const radius = size / 2;
+    const scale = isFinal ? 2.0 : 1.5;
     
-    // Main body
-    graphics.fillStyle(bossType.color, 1);
-    graphics.fillCircle(radius, radius, radius - 5);
+    // Use STAR shape for bosses (dragon-like, impressive)
+    graphics.save();
+    graphics.scale(scale, scale);
     
-    // Crown/horns for boss indicator
-    graphics.fillStyle(0xffaa00, 1);
-    for (let i = 0; i < 5; i++) {
-      const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      const x = radius + Math.cos(angle) * (radius - 10);
-      const y = radius + Math.sin(angle) * (radius - 10);
-      graphics.fillCircle(x, y, 6);
+    // Make boss color more vibrant
+    const bossColor = Phaser.Display.Color.IntegerToColor(bossType.color).saturate(30).color;
+    PlayerShapes.STAR(graphics, bossColor, 0xffaa00);
+    
+    graphics.restore();
+    
+    // Add extra crown/aura for final bosses
+    if (isFinal) {
+      const radius = size / 2;
+      // Outer aura rings
+      graphics.lineStyle(3, bossColor, 0.3);
+      graphics.strokeCircle(radius, radius, radius - 5);
+      graphics.lineStyle(2, bossColor, 0.2);
+      graphics.strokeCircle(radius, radius, radius - 2);
+      
+      // Crown spikes
+      graphics.fillStyle(0xffaa00, 1);
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+        const x = radius + Math.cos(angle) * (radius - 8);
+        const y = radius + Math.sin(angle) * (radius - 8);
+        graphics.fillCircle(x, y, 5);
+        graphics.fillStyle(0xffff00, 0.8);
+        graphics.fillCircle(x - 1, y - 1, 3);
+        graphics.fillStyle(0xffaa00, 1);
+      }
     }
-    
-    // Eyes
-    graphics.fillStyle(0xff0000, 1);
-    graphics.fillCircle(radius - 10, radius - 5, 4);
-    graphics.fillCircle(radius + 10, radius - 5, 4);
-    
-    // Outline
-    graphics.lineStyle(3, 0x000000, 1);
-    graphics.strokeCircle(radius, radius, radius - 5);
     
     const key = `boss_${bossType.key}_${Date.now()}`;
     graphics.generateTexture(key, size, size);

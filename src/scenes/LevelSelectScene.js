@@ -195,9 +195,9 @@ export default class LevelSelectScene extends Phaser.Scene {
 
   startLevel(levelNumber) {
     this.scene.start('PlatformScene', {
-      chapter: this.chapter,
-      level: levelNumber,
-      selectedElement: this.selectedElement
+      element: this.selectedElement,
+      chapterId: this.chapter.id,
+      levelNumber: levelNumber
     });
   }
 

@@ -8,7 +8,8 @@ export const CHAPTERS = {
     terrain: 'earth',
     description: 'Deep underground caverns',
     levels: 5,
-    unlockLevel: 1
+    unlockLevel: 1,
+    isStarter: true
   },
   FIRE: {
     id: 2,
@@ -18,7 +19,8 @@ export const CHAPTERS = {
     terrain: 'fire',
     description: 'Scorching volcanic realm',
     levels: 5,
-    unlockLevel: 2
+    unlockLevel: 1,
+    isStarter: true
   },
   WATER: {
     id: 3,
@@ -38,7 +40,8 @@ export const CHAPTERS = {
     terrain: 'wind',
     description: 'Floating islands in the sky',
     levels: 5,
-    unlockLevel: 4
+    unlockLevel: 1,
+    isStarter: true
   },
   NATURE: {
     id: 5,
@@ -128,7 +131,8 @@ export const CHAPTERS = {
     terrain: 'wood',
     description: 'Ancient wooden temple',
     levels: 5,
-    unlockLevel: 13
+    unlockLevel: 1,
+    isStarter: true
   },
   SOUND: {
     id: 14,
@@ -199,6 +203,17 @@ export const LEVEL_CONFIG = {
 // Get chapter array
 export function getChapterList() {
   return Object.values(CHAPTERS);
+}
+
+// Get starter chapters (earth, fire, wind, wood)
+export function getStarterChapters() {
+  return Object.values(CHAPTERS).filter(c => c.isStarter);
+}
+
+// Get random starter chapter (excluding player's element)
+export function getRandomStarterChapter(playerElementKey) {
+  const starters = getStarterChapters().filter(c => c.key !== playerElementKey);
+  return starters[Math.floor(Math.random() * starters.length)];
 }
 
 // Get chapter by key

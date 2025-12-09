@@ -1,18 +1,35 @@
 import Phaser from 'phaser';
 import { PLATFORM_CONFIG } from '../platform/PlatformConfig.js';
+import { PlayerShapes } from '../entities/PlayerShapes.js';
 
 export default class PlatformPlayer extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, element) {
-    // Create player texture
+    // Create player texture using original game shapes
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
     
-    // Draw player shape (similar to original game)
-    graphics.fillStyle(element.color, 1);
-    graphics.fillCircle(20, 20, 18);
+    // Select shape based on element (use different shapes for variety)
+    const elementShapeMap = {
+      'earth': 0, 'fire': 3, 'water': 2, 'wind': 1,
+      'nature': 6, 'lightning': 3, 'ice': 5, 'shadow': 4,
+      'light': 7, 'metal': 5, 'sound': 1, 'psychic': 7,
+      'poison': 4, 'gravity': 6, 'time': 7, 'space': 5,
+      'chaos': 4, 'wood': 6
+    };
+    const shapeIndex = elementShapeMap[element.key] || 0;
     
-    // Add team color outline
-    graphics.lineStyle(3, 0xffffff, 1);
-    graphics.strokeCircle(20, 20, 18);
+    const shapes = [
+      PlayerShapes.ROUND,
+      PlayerShapes.SQUARE,
+      PlayerShapes.OVAL,
+      PlayerShapes.STAR,
+      PlayerShapes.TRIANGLE,
+      PlayerShapes.DIAMOND,
+      PlayerShapes.HEXAGON,
+      PlayerShapes.CLOUD
+    ];
+    
+    const shapeFunction = shapes[shapeIndex % shapes.length];
+    shapeFunction(graphics, element.color, element.color);
     
     const key = `platform_player_${element.key}_${Date.now()}`;
     graphics.generateTexture(key, 40, 40);
@@ -51,8 +68,98 @@ export default class PlatformPlayer extends Phaser.Physics.Arcade.Sprite {
     this.setGravityY(PLATFORM_CONFIG.GRAVITY);
     this.setDepth(10);
 
+    // Keyboard controls using standard JavaScript events
+    this.keys = {
+      left: false,
+      right: false,
+      jump: false,
+      power: false
+    };
+
+    // Setup keyboard event listeners
+    this.setupKeyboardControls();
+
     // Create health bar
     this.createHealthBar(scene);
+  }
+
+  setupKeyboardControls() {
+    // Key down events
+    window.addEventListener('keydown', (e) => {
+      switch(e.key.toLowerCase()) {
+        case 'arrowleft':
+        case 'q':
+        case 'a':
+          this.keys.left = true;
+          break;
+        case 'arrowright':
+        case 'd':
+          this.keys.right = true;
+          break;
+        case 'arrowup':
+        case 'z':
+        case 'w':
+        case ' ':
+          this.keys.jump = true;
+          break;
+        case 'shift':
+        case 'control':
+        case 'e':
+          this.keys.power = true;
+          break;
+      }
+    });
+
+    // Key up events - CRITICAL for stopping movement
+    window.addEventListener('keyup', (e) => {
+      switch(e.key.toLowerCase()) {
+        case 'arrowleft':
+        case 'q':
+        case 'a':
+          this.keys.left = false;
+          break;
+        case 'arrowright':
+        case 'd':
+          this.keys.right = false;
+          break;
+        case 'arrowup':
+        case 'z':
+        case 'w':
+        case ' ':
+          this.keys.jump = false;
+          break;
+        case 'shift':
+        case 'control':
+        case 'e':
+          this.keys.power = false;
+          break;
+      }
+    });
+  }
+  
+  getShapeIndexForElement(elementKey) {
+    // Map elements to specific shapes for visual variety
+    const elementShapeMap = {
+      'earth': 0,    // ROUND (slime)
+      'fire': 3,     // STAR (dragon)
+      'water': 2,    // OVAL (fish/blob)
+      'wind': 1,     // SQUARE (fluffy)
+      'nature': 6,   // HEXAGON (plant)
+      'lightning': 3, // STAR
+      'ice': 5,      // DIAMOND (crystal)
+      'shadow': 4,   // TRIANGLE (dark)
+      'light': 0,    // ROUND (glow)
+      'metal': 1,    // SQUARE (solid)
+      'poison': 2,   // OVAL (toxic)
+      'psychic': 5,  // DIAMOND (gem)
+      'wood': 6,     // HEXAGON (organic)
+      'sound': 7,    // CLOUD (wavy)
+      'gold': 5,     // DIAMOND (shiny)
+      'glass': 5,    // DIAMOND (transparent)
+      'void': 4      // TRIANGLE (mysterious)
+    };
+    
+    return elementShapeMap[elementKey] || 0;
   }
 
   createHealthBar(scene) {
@@ -65,7 +172,7 @@ export default class PlatformPlayer extends Phaser.Physics.Arcade.Sprite {
     this.healthBar.setDepth(12);
   }
 
-  update(time, delta, cursors, controls) {
+  update(time, delta) {
     if (this.isDead) return;
 
     // Update timers
@@ -97,16 +204,19 @@ export default class PlatformPlayer extends Phaser.Physics.Arcade.Sprite {
     // Movement
     const speed = PLATFORM_CONFIG.PLAYER_SPEED * this.speedMultiplier;
     
-    if (cursors.left.isDown || controls.left) {
+    if (this.keys.left) {
       this.setVelocityX(-speed);
       this.setFlipX(true);
-    } else if (cursors.right.isDown || controls.right) {
+    } else if (this.keys.right) {
       this.setVelocityX(speed);
       this.setFlipX(false);
+    } else {
+      // Stop horizontal movement when no key is pressed
+      this.setVelocityX(0);
     }
 
     // Jump
-    if ((cursors.up.isDown || controls.jump) && this.body.touching.down) {
+    if (this.keys.jump && this.body.touching.down) {
       this.setVelocityY(-PLATFORM_CONFIG.PLAYER_JUMP);
     }
 
@@ -175,11 +285,19 @@ export default class PlatformPlayer extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  canUsePower() {
+    return this.powerCooldown <= 0;
+  }
+
   usePower() {
     if (this.powerCooldown > 0) return false;
     
     this.powerCooldown = PLATFORM_CONFIG.POWER_COOLDOWN;
     return true;
+  }
+
+  canUseGiftPower() {
+    return this.giftPowerCooldown <= 0 && !this.giftPowerActive;
   }
 
   activateGiftPower(powerType, duration, multiplier = 1) {

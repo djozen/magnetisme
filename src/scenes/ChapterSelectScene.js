@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CHAPTERS, getChapterList } from '../platform/ChapterConfig.js';
+import { CHAPTERS, getChapterList, getRandomStarterChapter } from '../platform/ChapterConfig.js';
 import { ELEMENTS, PLATFORM_CONFIG } from '../platform/PlatformConfig.js';
 import { platformProgress } from '../platform/PlatformProgress.js';
 
@@ -122,15 +122,14 @@ export default class ChapterSelectScene extends Phaser.Scene {
       // Select first element by default if none selected
       const element = this.selectedElement || Object.values(ELEMENTS)[0];
       
-      // Get first available chapter (not player's element)
-      const allChapters = getChapterList();
-      const firstChapter = allChapters.find(ch => ch.key !== element.key && ch.key !== 'final');
+      // Get random starter chapter (earth, fire, wind, or wood - excluding player's element)
+      const starterChapter = getRandomStarterChapter(element.key);
       
-      if (firstChapter) {
+      if (starterChapter) {
         // Start first level directly
         this.scene.start('PlatformScene', {
           element: element,
-          chapterId: firstChapter.id,
+          chapterId: starterChapter.id,
           levelNumber: 1
         });
       }
@@ -230,15 +229,13 @@ export default class ChapterSelectScene extends Phaser.Scene {
     });
     
     quickPlayButton.on('pointerdown', () => {
-      // Find first unlocked chapter
-      const firstUnlocked = availableChapters.find(ch => 
-        platformProgress.isChapterUnlocked(ch.key, ch.unlockLevel)
-      );
+      // Get random starter chapter (earth, fire, wind, or wood - excluding player's element)
+      const starterChapter = getRandomStarterChapter(this.selectedElement.key);
       
-      if (firstUnlocked) {
+      if (starterChapter) {
         this.scene.start('PlatformScene', {
           element: this.selectedElement,
-          chapterId: firstUnlocked.id,
+          chapterId: starterChapter.id,
           levelNumber: 1
         });
       }

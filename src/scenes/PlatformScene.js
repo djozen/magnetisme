@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import PlatformPlayer from '../platform/PlatformPlayer.js';
 import Enemy from '../platform/Enemy.js';
 import Boss from '../platform/Boss.js';
-import { CHAPTERS } from '../platform/ChapterConfig.js';
-import { ENEMY_TYPES } from '../platform/EnemyTypes.js';
+import { CHAPTERS, getChapterList } from '../platform/ChapterConfig.js';
+import { ENEMY_TYPES, getEnemiesForElement } from '../platform/EnemyTypes.js';
 import { BOSS_TYPES } from '../platform/BossTypes.js';
 import { PLATFORM_CONFIG } from '../platform/PlatformConfig.js';
 import { PlatformProgress } from '../platform/PlatformProgress.js';
@@ -18,7 +18,16 @@ export default class PlatformScene extends Phaser.Scene {
     this.chapterId = data.chapterId;
     this.levelNumber = data.levelNumber;
     
-    this.chapter = CHAPTERS.find(c => c.id === this.chapterId);
+    const chapterList = getChapterList();
+    this.chapter = chapterList.find(c => c.id === this.chapterId);
+    
+    // Fallback to first chapter if not found
+    if (!this.chapter) {
+      console.warn(`Chapter with id ${this.chapterId} not found, using first chapter`);
+      this.chapter = chapterList[0];
+      this.chapterId = this.chapter.id;
+    }
+    
     this.levelType = this.getLevelType(this.levelNumber);
     
     this.score = 0;
@@ -107,20 +116,52 @@ export default class PlatformScene extends Phaser.Scene {
 
   createBackground() {
     const { width, height } = this.cameras.main;
-    const bg = this.add.rectangle(0, 0, width * 3, height, this.chapter.color);
-    bg.setOrigin(0, 0);
-    bg.setAlpha(0.3);
-    bg.setScrollFactor(0.5);
+    
+    // Multi-layer gradient background
+    const graphics = this.add.graphics();
+    
+    // Base layer - dark gradient
+    const colorObj = Phaser.Display.Color.IntegerToColor(this.chapter.color);
+    const darkColor = colorObj.clone().darken(50).color;
+    const lightColor = colorObj.clone().lighten(20).color;
+    
+    graphics.fillGradientStyle(darkColor, darkColor, this.chapter.color, this.chapter.color, 1);
+    graphics.fillRect(0, 0, width * 3, height);
+    graphics.setScrollFactor(0.5);
+    graphics.setDepth(-10);
+    
+    // Add atmospheric particles
+    for (let i = 0; i < 30; i++) {
+      const particle = this.add.circle(
+        Phaser.Math.Between(0, width * 3),
+        Phaser.Math.Between(0, height),
+        Phaser.Math.Between(2, 5),
+        this.chapter.color,
+        0.2
+      );
+      particle.setScrollFactor(0.3 + Math.random() * 0.3);
+      particle.setDepth(-9);
+      
+      // Gentle floating animation
+      this.tweens.add({
+        targets: particle,
+        y: particle.y + Phaser.Math.Between(-50, 50),
+        x: particle.x + Phaser.Math.Between(-30, 30),
+        alpha: 0.1 + Math.random() * 0.3,
+        duration: 3000 + Math.random() * 2000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
   }
 
   createLevel() {
     const { width, height } = this.cameras.main;
-    const platformWidth = width * 3;
+    const worldWidth = PLATFORM_CONFIG.WORLD_WIDTH;
     
-    // Ground
-    const ground = this.add.rectangle(platformWidth / 2, height - 20, platformWidth, 40, 0x654321);
-    this.physics.add.existing(ground, true);
-    this.platforms.add(ground);
+    // Create continuous ground with holes
+    this.createGroundWithHoles();
     
     // Generate platforms based on level type
     if (this.levelType === 'boss') {
@@ -130,19 +171,167 @@ export default class PlatformScene extends Phaser.Scene {
     }
   }
 
+  createGroundWithHoles() {
+    const worldWidth = PLATFORM_CONFIG.WORLD_WIDTH;
+    const groundY = PLATFORM_CONFIG.GROUND_Y;
+    const groundHeight = PLATFORM_CONFIG.GROUND_HEIGHT;
+    
+    // Generate random holes
+    const holes = [];
+    const holeCount = PLATFORM_CONFIG.HOLES_PER_LEVEL;
+    
+    for (let i = 0; i < holeCount; i++) {
+      const holeX = 300 + (i * (worldWidth - 600) / holeCount) + Math.random() * 200;
+      const holeWidth = Phaser.Math.Between(
+        PLATFORM_CONFIG.HOLE_WIDTH_MIN,
+        PLATFORM_CONFIG.HOLE_WIDTH_MAX
+      );
+      holes.push({ x: holeX, width: holeWidth });
+    }
+    
+    // Sort holes by x position
+    holes.sort((a, b) => a.x - b.x);
+    
+    // Create ground segments between holes
+    let currentX = 0;
+    
+    for (let hole of holes) {
+      const segmentWidth = hole.x - currentX;
+      if (segmentWidth > 50) {
+        this.createGroundSegment(currentX, groundY, segmentWidth, groundHeight);
+      }
+      
+      // Create elemental hole
+      this.createElementalHole(hole.x, groundY, hole.width, groundHeight);
+      
+      currentX = hole.x + hole.width;
+    }
+    
+    // Final segment to end of world
+    const finalWidth = worldWidth - currentX;
+    if (finalWidth > 0) {
+      this.createGroundSegment(currentX, groundY, finalWidth, groundHeight);
+    }
+  }
+
+  createGroundSegment(x, y, width, height) {
+    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    const groundColor = Phaser.Display.Color.IntegerToColor(this.chapter.color).darken(40).color;
+    const darkColor = Phaser.Display.Color.IntegerToColor(this.chapter.color).darken(50).color;
+    
+    // Ground gradient
+    graphics.fillGradientStyle(groundColor, groundColor, darkColor, darkColor, 1);
+    graphics.fillRect(0, 0, width, height);
+    
+    // Add texture details
+    for (let i = 0; i < width; i += 20) {
+      graphics.fillStyle(0x000000, 0.1 + Math.random() * 0.1);
+      graphics.fillRect(i, Math.random() * 10, 10, height);
+    }
+    
+    // Top highlight
+    graphics.fillStyle(Phaser.Display.Color.IntegerToColor(this.chapter.color).lighten(10).color, 0.3);
+    graphics.fillRect(0, 0, width, 3);
+    
+    const key = `ground_${x}_${Date.now()}`;
+    graphics.generateTexture(key, width, height);
+    graphics.destroy();
+    
+    const ground = this.add.image(x + width / 2, y + height / 2, key);
+    this.physics.add.existing(ground, true);
+    this.platforms.add(ground);
+  }
+
+  createElementalHole(x, y, width, height) {
+    // Visual effect for the hole (danger zone)
+    const holeTypes = ['fire', 'ice', 'wind', 'void', 'light', 'shadow', 'lightning', 'poison'];
+    const holeType = Phaser.Utils.Array.GetRandom(holeTypes);
+    
+    const colors = {
+      fire: 0xff4400,
+      ice: 0x00ddff,
+      wind: 0xaaffaa,
+      void: 0x220033,
+      light: 0xffffaa,
+      shadow: 0x330033,
+      lightning: 0xffff00,
+      poison: 0x88ff00
+    };
+    
+    const holeColor = colors[holeType] || 0x000000;
+    
+    // Animated particles rising from hole
+    for (let i = 0; i < 5; i++) {
+      const particle = this.add.circle(
+        x + Math.random() * width,
+        y,
+        3 + Math.random() * 3,
+        holeColor,
+        0.6
+      );
+      particle.setDepth(1);
+      
+      this.tweens.add({
+        targets: particle,
+        y: y - 100,
+        alpha: 0,
+        duration: 2000 + Math.random() * 1000,
+        repeat: -1,
+        delay: Math.random() * 2000
+      });
+    }
+    
+    // Glow at bottom of hole
+    const glow = this.add.rectangle(x + width / 2, y + height, width, 20, holeColor, 0.3);
+    glow.setDepth(1);
+    
+    this.tweens.add({
+      targets: glow,
+      alpha: 0.1,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1
+    });
+  }
+
   createNormalPlatforms() {
     const { width, height } = this.cameras.main;
     
-    // Create procedural platforms
+    // Create procedural platforms with better visuals
     const platformCount = 15 + this.levelNumber * 3;
     const segmentWidth = (width * 3) / platformCount;
+    const platformColor = Phaser.Display.Color.IntegerToColor(this.chapter.color).darken(30).color;
     
     for (let i = 1; i < platformCount; i++) {
       const x = i * segmentWidth + Phaser.Math.Between(-50, 50);
       const y = Phaser.Math.Between(height * 0.3, height * 0.8);
       const w = Phaser.Math.Between(100, 200);
       
-      const platform = this.add.rectangle(x, y, w, 20, 0x8b4513);
+      // Create platform with gradient and border
+      const platformGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+      const lightColor = Phaser.Display.Color.IntegerToColor(platformColor).lighten(20).color;
+      
+      // Shadow
+      platformGraphics.fillStyle(0x000000, 0.3);
+      platformGraphics.fillRect(2, 22, w, 4);
+      
+      // Main platform with gradient
+      platformGraphics.fillGradientStyle(lightColor, lightColor, platformColor, platformColor, 1);
+      platformGraphics.fillRect(0, 0, w, 20);
+      
+      // Border
+      platformGraphics.lineStyle(2, 0x000000, 0.5);
+      platformGraphics.strokeRect(0, 0, w, 20);
+      
+      // Top highlight
+      platformGraphics.lineStyle(1, 0xffffff, 0.3);
+      platformGraphics.lineBetween(2, 2, w - 2, 2);
+      
+      const key = `platform_${i}_${Date.now()}`;
+      platformGraphics.generateTexture(key, w + 4, 26);
+      platformGraphics.destroy();
+      
+      const platform = this.add.image(x, y, key);
       this.physics.add.existing(platform, true);
       this.platforms.add(platform);
     }
@@ -153,7 +342,21 @@ export default class PlatformScene extends Phaser.Scene {
       const y = Phaser.Math.Between(height * 0.4, height * 0.7);
       
       for (let j = 0; j < 3; j++) {
-        const platform = this.add.rectangle(x, y - j * 80, 120, 15, 0x8b4513);
+        const platformGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+        const lightColor = Phaser.Display.Color.IntegerToColor(platformColor).lighten(20).color;
+        
+        platformGraphics.fillGradientStyle(lightColor, lightColor, platformColor, platformColor, 1);
+        platformGraphics.fillRect(0, 0, 120, 15);
+        platformGraphics.lineStyle(2, 0x000000, 0.5);
+        platformGraphics.strokeRect(0, 0, 120, 15);
+        platformGraphics.lineStyle(1, 0xffffff, 0.3);
+        platformGraphics.lineBetween(2, 2, 118, 2);
+        
+        const key = `vplatform_${i}_${j}_${Date.now()}`;
+        platformGraphics.generateTexture(key, 120, 15);
+        platformGraphics.destroy();
+        
+        const platform = this.add.image(x, y - j * 80, key);
         this.physics.add.existing(platform, true);
         this.platforms.add(platform);
       }
@@ -188,7 +391,7 @@ export default class PlatformScene extends Phaser.Scene {
     } else {
       // Spawn normal enemies
       const enemyCount = 5 + this.levelNumber * 2;
-      const elementEnemies = ENEMY_TYPES.filter(e => e.element === this.chapter.key);
+      const elementEnemies = getEnemiesForElement(this.chapter.key);
       
       for (let i = 0; i < enemyCount; i++) {
         const enemyType = Phaser.Utils.Array.GetRandom(elementEnemies);
@@ -304,15 +507,15 @@ export default class PlatformScene extends Phaser.Scene {
     
     // Update player
     if (!this.player.isDead) {
-      this.player.update(time, delta, this.cursors, this.controls);
+      this.player.update(time, delta);
       
-      // Shoot projectile
-      if (Phaser.Input.Keyboard.JustDown(this.controls.space)) {
+      // Shoot projectile (using player's keys state)
+      if (this.player.keys.power && this.player.canUsePower()) {
         this.shootProjectile();
       }
       
       // Use gift power
-      if (Phaser.Input.Keyboard.JustDown(this.controls.shift) && this.player.canUseGiftPower()) {
+      if (this.player.keys.power && this.player.canUseGiftPower()) {
         this.player.activateGiftPower();
       }
     }
