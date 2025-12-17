@@ -681,7 +681,8 @@ export class PowerSystem {
   thunderPower(player) {
     if (!this.scene || !this.scene.teamBases) return;
     
-    this.scatterSpirits(player);
+    // Ne PAS détacher les spirits du lanceur - seulement ceux des victimes
+    // this.scatterSpirits(player);
 
     const playerBase = this.scene.teamBases.find(b => b.teamId === player.teamId);
     if (!playerBase) return;

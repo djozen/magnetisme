@@ -3480,6 +3480,108 @@ export class TerrainSystem {
       this.hazards.push(speedBoost);
     }
     
+    // Effet de foudre permanent qui frappe les bases (toutes les 3-5 secondes)
+    const lightningStrikeHazard = {
+      type: 'thunderStrike',
+      lastStrike: 0,
+      strikeDelay: 3000, // 3 secondes entre chaque foudre
+      update: (time, delta, players) => {
+        if (time - lightningStrikeHazard.lastStrike > lightningStrikeHazard.strikeDelay) {
+          lightningStrikeHazard.lastStrike = time;
+          
+          // Choisir une base aléatoire à frapper
+          const bases = this.scene.bases || [];
+          if (bases.length > 0) {
+            const targetBase = Phaser.Utils.Array.GetRandom(bases);
+            const baseX = targetBase.x;
+            const baseY = targetBase.y;
+            const baseRadius = 100; // Rayon de la base
+            
+            // Effet visuel de foudre
+            const bolt = this.scene.add.graphics();
+            bolt.setDepth(25);
+            bolt.lineStyle(6, 0xffff00, 1);
+            
+            // Foudre en zigzag depuis le haut
+            const startY = baseY - 200;
+            let currentX = baseX + Phaser.Math.Between(-30, 30);
+            let currentY = startY;
+            
+            bolt.beginPath();
+            bolt.moveTo(currentX, currentY);
+            
+            for (let i = 0; i < 8; i++) {
+              currentX += Phaser.Math.Between(-15, 15);
+              currentY += 25;
+              bolt.lineTo(currentX, currentY);
+            }
+            bolt.strokePath();
+            
+            // Flash blanc
+            const flash = this.scene.add.circle(baseX, baseY, baseRadius * 1.5, 0xffffff, 0.6);
+            flash.setDepth(24);
+            
+            // Animation de disparition
+            this.scene.tweens.add({
+              targets: [bolt, flash],
+              alpha: 0,
+              duration: 300,
+              onComplete: () => {
+                bolt.destroy();
+                flash.destroy();
+              }
+            });
+            
+            // Détacher et éparpiller les spirits des joueurs touchés à la base
+            players.forEach(player => {
+              if (!player.active) return;
+              
+              const distToBase = Phaser.Math.Distance.Between(player.x, player.y, baseX, baseY);
+              
+              if (distToBase < baseRadius) {
+                // Joueur touché par la foudre à la base
+                const spirits = this.scene.spirits || [];
+                
+                // Détacher tous les spirits du joueur
+                spirits.forEach(spirit => {
+                  if (spirit.followingPlayer === player) {
+                    spirit.setFollowPlayer(null, -1);
+                    
+                    // Éparpiller dans une direction aléatoire
+                    const scatterAngle = Math.random() * Math.PI * 2;
+                    const scatterDist = Phaser.Math.Between(80, 150);
+                    const targetX = spirit.x + Math.cos(scatterAngle) * scatterDist;
+                    const targetY = spirit.y + Math.sin(scatterAngle) * scatterDist;
+                    
+                    this.scene.tweens.add({
+                      targets: spirit,
+                      x: targetX,
+                      y: targetY,
+                      duration: 400,
+                      ease: 'Cubic.easeOut'
+                    });
+                  }
+                });
+                
+                // Effet visuel d'électrocution sur le joueur
+                const shockEffect = this.scene.add.circle(player.x, player.y, 25, 0xffff00, 0.5);
+                shockEffect.setDepth(20);
+                this.scene.tweens.add({
+                  targets: shockEffect,
+                  scale: 2,
+                  alpha: 0,
+                  duration: 400,
+                  onComplete: () => shockEffect.destroy()
+                });
+              }
+            });
+          }
+        }
+      }
+    };
+    
+    this.hazards.push(lightningStrikeHazard);
+    
     // Large transformers (4-6) - OBSTACLES PHYSIQUES
     for (let i = 0; i < 5; i++) {
       const transX = Phaser.Math.Between(150, width - 150);
