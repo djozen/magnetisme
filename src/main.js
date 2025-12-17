@@ -5,9 +5,13 @@ import GameScene from './scenes/GameScene.js';
 
 const config = {
   type: Phaser.AUTO,
-  width: 1280,
-  height: 720,
-  parent: 'game-container',
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    parent: 'game-container',
+    width: window.innerWidth,
+    height: window.innerHeight,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
   backgroundColor: '#2d2d2d',
   physics: {
     default: 'arcade',

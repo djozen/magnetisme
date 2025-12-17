@@ -58,6 +58,7 @@ export class PowerSystem {
     
     // Visual effect - expanding fire ring with increased intensity based on level
     const fire = this.scene.add.circle(player.x, player.y, 10, 0xff4500, 0.8);
+    fire.setDepth(20); // Au-dessus de tous les éléments du terrain
     this.scene.tweens.add({
       targets: fire,
       radius: radius,
@@ -77,6 +78,7 @@ export class PowerSystem {
           0xff4500,
           0.7
         );
+        fireParticle.setDepth(20); // Au-dessus de tous les éléments du terrain
         this.scene.tweens.add({
           targets: fireParticle,
           radius: radius * 1.2,
@@ -119,66 +121,311 @@ export class PowerSystem {
   }
 
   // Water: Water blast pushes players and ejects spirits
+  // Special: In Aquatic Realm (water terrain), creates a kamehameha beam that destroys all spirits
   waterPower(player) {
     // Get player level (AI players are level 1)
     const playerLevel = player.isAI ? 1 : playerProgress.level;
     
-    // Base radius + 0.2 tiles per level for knockback
-    const baseRadius = GAME_CONFIG.TILE_SIZE * 3;
-    const bonusRadius = GAME_CONFIG.TILE_SIZE * 0.2 * playerLevel;
-    const radius = baseRadius + bonusRadius;
+    // Check if we're in Aquatic Realm
+    const isAquaticRealm = this.scene.currentTerrain && this.scene.currentTerrain.key === 'water';
     
-    const water = this.scene.add.circle(player.x, player.y, 10, 0x0077be, 0.6);
-    this.scene.tweens.add({
-      targets: water,
-      radius: radius,
-      alpha: 0,
-      duration: 500,
-      onComplete: () => water.destroy()
-    });
-    
-    // Add extra water ripples for higher levels
-    if (playerLevel > 5) {
-      for (let i = 0; i < Math.min(playerLevel, 10); i++) {
-        const delay = i * 50;
-        this.scene.time.delayedCall(delay, () => {
-          const ripple = this.scene.add.circle(player.x, player.y, radius * 0.3, 0x0077be, 0.4);
-          this.scene.tweens.add({
-            targets: ripple,
-            radius: radius * 1.3,
-            alpha: 0,
-            duration: 600,
-            onComplete: () => ripple.destroy()
-          });
+    if (isAquaticRealm) {
+      // KAMEHAMEHA MODE - Beam attack in Aquatic Realm
+      const beamLength = 800; // Longueur du rayon
+      const beamWidth = 100;   // Largeur du rayon (augmenté de 60 à 100)
+      const powerDuration = 2000; // Durée du pouvoir (2 secondes)
+      
+      // Immobiliser le joueur pendant le pouvoir
+      const originalVelocity = { x: player.body.velocity.x, y: player.body.velocity.y };
+      player.body.setVelocity(0, 0);
+      player.body.immovable = true;
+      
+      // Direction du joueur (dernière direction de mouvement)
+      let angle = 0;
+      if (Math.abs(originalVelocity.x) > Math.abs(originalVelocity.y)) {
+        angle = originalVelocity.x > 0 ? 0 : Math.PI;
+      } else if (originalVelocity.y !== 0) {
+        angle = originalVelocity.y > 0 ? Math.PI / 2 : -Math.PI / 2;
+      }
+      
+      // Point final du rayon
+      const endX = player.x + Math.cos(angle) * beamLength;
+      const endY = player.y + Math.sin(angle) * beamLength;
+      
+      // Effet visuel - Rayon kamehameha bleu brillant
+      const beam = this.scene.add.graphics();
+      beam.setDepth(20);
+      
+      // Dessiner le rayon avec gradient
+      for (let i = 0; i < 5; i++) {
+        const alpha = 0.8 - (i * 0.15);
+        const width = beamWidth - (i * 8);
+        const color = i === 0 ? 0x00ffff : 0x0077be;
+        
+        beam.lineStyle(width, color, alpha);
+        beam.lineBetween(player.x, player.y, endX, endY);
+      }
+      
+      // Animation du rayon
+      beam.alpha = 0;
+      this.scene.tweens.add({
+        targets: beam,
+        alpha: 1,
+        duration: 200,
+        yoyo: true,
+        repeat: 4, // Répéter pour durer 2 secondes (200ms * 2 * 5 = 2000ms)
+        onComplete: () => {
+          beam.destroy();
+          // Libérer le joueur après le pouvoir
+          player.body.immovable = false;
+        }
+      });
+      
+      // Particules d'énergie le long du rayon
+      for (let i = 0; i < 20; i++) {
+        const t = i / 20;
+        const px = player.x + Math.cos(angle) * beamLength * t;
+        const py = player.y + Math.sin(angle) * beamLength * t;
+        
+        const particle = this.scene.add.circle(px, py, 10, 0x00ffff, 0.8);
+        particle.setDepth(20);
+        this.scene.tweens.add({
+          targets: particle,
+          radius: 20,
+          alpha: 0,
+          duration: 400,
+          delay: i * 20,
+          onComplete: () => particle.destroy()
         });
       }
-    }
-
-    this.scene.players.forEach(other => {
-      if (this.shouldAffectPlayer(player, other)) {
-        const dist = Phaser.Math.Distance.Between(player.x, player.y, other.x, other.y);
-        if (dist < radius) {
-          const angle = Phaser.Math.Angle.Between(player.x, player.y, other.x, other.y);
-          const knockbackDistance = GAME_CONFIG.TILE_SIZE * 3;
-          
-          const targetX = other.x + Math.cos(angle) * knockbackDistance;
-          const targetY = other.y + Math.sin(angle) * knockbackDistance;
-          
-          this.scene.tweens.add({
-            targets: other,
-            x: targetX,
-            y: targetY,
-            duration: 300,
-            ease: 'Power2'
-          });
-          
-          // Détache TOUTES les boules des joueurs touchés (sauf soi-même)
-          if (other !== player) {
-            this.detachAllSpirits(other, angle);
+      
+      // Détruire TOUS les spirits dans la zone du rayon (sauf ceux du lanceur)
+      const line = new Phaser.Geom.Line(player.x, player.y, endX, endY);
+      
+      this.scene.spirits.forEach(spirit => {
+        if (!spirit.active) return;
+        
+        // Ne pas toucher les spirits attachés au lanceur
+        if (spirit.followingPlayer === player) return;
+        
+        // Distance du spirit à la ligne du rayon
+        const point = new Phaser.Geom.Point(spirit.x, spirit.y);
+        const closest = Phaser.Geom.Line.GetNearestPoint(line, point);
+        const dist = Phaser.Math.Distance.Between(spirit.x, spirit.y, closest.x, closest.y);
+        
+        if (dist < beamWidth / 2) {
+          // Vérifier que le spirit est dans la longueur du rayon
+          const distFromPlayer = Phaser.Math.Distance.Between(player.x, player.y, spirit.x, spirit.y);
+          if (distFromPlayer <= beamLength) {
+            // Détacher le spirit s'il est attaché à un autre joueur
+            if (spirit.followingPlayer) {
+              spirit.setFollowPlayer(null);
+            }
+            
+            // Effet de dispersion
+            const scatterAngle = angle + (Math.random() - 0.5) * Math.PI / 2;
+            const scatterDist = Phaser.Math.Between(200, 400);
+            const targetX = spirit.x + Math.cos(scatterAngle) * scatterDist;
+            const targetY = spirit.y + Math.sin(scatterAngle) * scatterDist;
+            
+            // Effet visuel
+            const explosion = this.scene.add.circle(spirit.x, spirit.y, 5, 0x00ffff, 0.8);
+            explosion.setDepth(20);
+            this.scene.tweens.add({
+              targets: explosion,
+              radius: 25,
+              alpha: 0,
+              duration: 300,
+              onComplete: () => explosion.destroy()
+            });
+            
+            // Tint bleu temporaire
+            spirit.setTint(0x00ffff);
+            this.scene.time.delayedCall(300, () => {
+              if (spirit && spirit.active) {
+                spirit.clearTint();
+              }
+            });
+            
+            // Disperser le spirit
+            this.scene.tweens.add({
+              targets: spirit,
+              x: targetX,
+              y: targetY,
+              duration: 500,
+              ease: 'Power2'
+            });
           }
         }
+      });
+      
+      // Pousser les joueurs touchés avec force violente
+      this.scene.players.forEach(other => {
+        if (this.shouldAffectPlayer(player, other)) {
+          const point = new Phaser.Geom.Point(other.x, other.y);
+          const closest = Phaser.Geom.Line.GetNearestPoint(line, point);
+          const dist = Phaser.Math.Distance.Between(other.x, other.y, closest.x, closest.y);
+          
+          if (dist < beamWidth / 2) {
+            const distFromPlayer = Phaser.Math.Distance.Between(player.x, player.y, other.x, other.y);
+            if (distFromPlayer <= beamLength) {
+              // Éjection violente dans la direction du rayon
+              const knockbackDistance = GAME_CONFIG.TILE_SIZE * 8; // Éjection très forte (8 tiles)
+              const targetX = other.x + Math.cos(angle) * knockbackDistance;
+              const targetY = other.y + Math.sin(angle) * knockbackDistance;
+              
+              // Effet de stun visuel
+              const stunEffect = this.scene.add.circle(other.x, other.y, 30, 0xffff00, 0.5);
+              stunEffect.setDepth(20);
+              this.scene.tweens.add({
+                targets: stunEffect,
+                scale: 1.5,
+                alpha: 0,
+                duration: 400,
+                onComplete: () => stunEffect.destroy()
+              });
+              
+              // Éjection avec effet de rebond
+              this.scene.tweens.add({
+                targets: other,
+                x: targetX,
+                y: targetY,
+                duration: 400,
+                ease: 'Back.easeOut'
+              });
+              
+              // Détacher tous les spirits du joueur éjecté
+              this.scene.spirits.forEach(spirit => {
+                if (spirit.followingPlayer === other) {
+                  spirit.setFollowPlayer(null);
+                  
+                  // Disperser les spirits
+                  const scatterAngle = Math.random() * Math.PI * 2;
+                  const scatterDist = Phaser.Math.Between(150, 300);
+                  this.scene.tweens.add({
+                    targets: spirit,
+                    x: spirit.x + Math.cos(scatterAngle) * scatterDist,
+                    y: spirit.y + Math.sin(scatterAngle) * scatterDist,
+                    duration: 400,
+                    ease: 'Power2'
+                  });
+                }
+              });
+            }
+          }
+        }
+      });
+      
+    } else {
+      // MODE NORMAL - Blast circulaire pour les autres terrains
+      // Base radius + 0.2 tiles per level for knockback (augmenté)
+      const baseRadius = GAME_CONFIG.TILE_SIZE * 4; // Augmenté de 3 à 4
+      const bonusRadius = GAME_CONFIG.TILE_SIZE * 0.3 * playerLevel; // Augmenté de 0.2 à 0.3
+      const radius = baseRadius + bonusRadius;
+      const powerDuration = 2000; // 2 secondes
+      
+      // Immobiliser le joueur pendant le pouvoir
+      if (player.body) {
+        player.body.setVelocity(0, 0);
+        player.body.immovable = true;
       }
-    });
+      
+      const water = this.scene.add.circle(player.x, player.y, 10, 0x0077be, 0.6);
+      water.setDepth(20); // Au-dessus de tous les éléments du terrain
+      this.scene.tweens.add({
+        targets: water,
+        radius: radius,
+        alpha: 0,
+        duration: powerDuration, // Durée augmentée à 2 secondes
+        onComplete: () => {
+          water.destroy();
+          // Libérer le joueur après le pouvoir
+          if (player.body) {
+            player.body.immovable = false;
+          }
+        }
+      });
+      
+      // Add extra water ripples for higher levels
+      if (playerLevel > 5) {
+        for (let i = 0; i < Math.min(playerLevel, 10); i++) {
+          const delay = i * 50;
+          this.scene.time.delayedCall(delay, () => {
+            const ripple = this.scene.add.circle(player.x, player.y, radius * 0.3, 0x0077be, 0.4);
+            ripple.setDepth(20); // Au-dessus de tous les éléments du terrain
+            this.scene.tweens.add({
+              targets: ripple,
+              radius: radius * 1.3,
+              alpha: 0,
+              duration: 600,
+              onComplete: () => ripple.destroy()
+            });
+          });
+        }
+      }
+
+      this.scene.players.forEach(other => {
+        if (this.shouldAffectPlayer(player, other)) {
+          const dist = Phaser.Math.Distance.Between(player.x, player.y, other.x, other.y);
+          if (dist < radius) {
+            const angle = Phaser.Math.Angle.Between(player.x, player.y, other.x, other.y);
+            const knockbackDistance = GAME_CONFIG.TILE_SIZE * 3;
+            
+            const targetX = other.x + Math.cos(angle) * knockbackDistance;
+            const targetY = other.y + Math.sin(angle) * knockbackDistance;
+            
+            this.scene.tweens.add({
+              targets: other,
+              x: targetX,
+              y: targetY,
+              duration: 300,
+              ease: 'Power2'
+            });
+            
+            // Détache et disperse TOUTES les boules des joueurs touchés
+            this.detachAndScatterSpirits(other, angle);
+          }
+        }
+      });
+      
+      // Disperser aussi tous les spirits libres dans le rayon (sauf ceux du lanceur)
+      this.scene.spirits.forEach(spirit => {
+        if (!spirit.active) return;
+        if (spirit.followingPlayer === player) return; // Ne pas toucher les spirits du lanceur
+        
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, spirit.x, spirit.y);
+        if (dist < radius) {
+          // Détacher si attaché
+          if (spirit.followingPlayer) {
+            spirit.setFollowPlayer(null);
+          }
+          
+          // Disperser
+          const angle = Phaser.Math.Angle.Between(player.x, player.y, spirit.x, spirit.y);
+          const scatterAngle = angle + (Math.random() - 0.5) * Math.PI / 3;
+          const scatterDist = Phaser.Math.Between(200, 400);
+          const targetX = spirit.x + Math.cos(scatterAngle) * scatterDist;
+          const targetY = spirit.y + Math.sin(scatterAngle) * scatterDist;
+          
+          // Tint bleu temporaire
+          spirit.setTint(0x0077be);
+          this.scene.time.delayedCall(300, () => {
+            if (spirit && spirit.active) {
+              spirit.clearTint();
+            }
+          });
+          
+          // Disperser
+          this.scene.tweens.add({
+            targets: spirit,
+            x: targetX,
+            y: targetY,
+            duration: 500,
+            ease: 'Power2'
+          });
+        }
+      });
+    }
   }
 
   // Ice: Creates freeze zone in 1.5 tile radius for 5 seconds
@@ -567,7 +814,7 @@ export class PowerSystem {
     });
   }
 
-  // Light: Teleports to base with +10 bonus, deposits spirits, creates repel zone
+  // Light: Teleports to base with spirits, deposits them automatically
   lightPower(player) {
     const castX = player.x;
     const castY = player.y;
@@ -577,14 +824,15 @@ export class PowerSystem {
     const playerBase = this.scene.teamBases.find(b => b.teamId === player.teamId);
     if (!playerBase) return;
     
-    // Count spirits following player (ils restent attachés et suivent le joueur à la base)
-    let spiritCount = 0;
+    // Collecter les spirits du joueur pour les téléporter avec lui
+    const spiritsToTeleport = [];
     this.scene.spirits.forEach(spirit => {
       if (spirit.followingPlayer === player) {
-        spiritCount++;
-        // Les esprits restent attachés et suivent le joueur
+        spiritsToTeleport.push(spirit);
       }
     });
+    
+    const spiritCount = spiritsToTeleport.length;
     
     // Flash effect before teleport
     const flash = this.scene.add.circle(player.x, player.y, 40, 0xfffacd, 0.8);
@@ -606,13 +854,40 @@ export class PowerSystem {
       player.x = playerBase.x;
       player.y = playerBase.y + 80;
       
-      // Les esprits suivent automatiquement le joueur à sa nouvelle position
+      // Téléporter tous les spirits à la base et les déposer automatiquement
+      spiritsToTeleport.forEach((spirit, index) => {
+        // Détacher le spirit
+        spirit.setFollowPlayer(null);
+        
+        // Téléporter le spirit à la base avec un léger délai
+        this.scene.time.delayedCall(index * 50, () => {
+          spirit.x = playerBase.x;
+          spirit.y = playerBase.y;
+          
+          // Effet visuel à la base
+          const spiritFlash = this.scene.add.circle(playerBase.x, playerBase.y, 20, 0xfffacd, 0.8);
+          this.scene.tweens.add({
+            targets: spiritFlash,
+            scale: 1.5,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => spiritFlash.destroy()
+          });
+          
+          // Désactiver le spirit et le respawn
+          spirit.setActive(false).setVisible(false);
+          this.scene.time.delayedCall(GAME_CONFIG.SPIRIT_RESPAWN_TIME, () => {
+            this.scene.respawnSpirit(spirit);
+          });
+        });
+      });
       
-      // Add +10 bonus + points pour les esprits qui restent attachés
+      // Add points for deposited spirits + 10 bonus
       const teamScore = this.scene.teamScores.find(ts => ts.teamId === player.teamId);
       if (teamScore) {
-        teamScore.score += (spiritCount * 2) + 10; // Double points pour les esprits téléportés
-        this.scene.showNotification(playerBase.x, playerBase.y - 100, `+${(spiritCount * 2) + 10}!`, 0xfffacd);
+        teamScore.score += spiritCount + 10;
+        this.scene.updateScoreDisplay();
+        this.scene.showNotification(playerBase.x, playerBase.y - 100, `+${spiritCount + 10}!`, 0xfffacd);
       }
       
       // Restore normal camera speed after 2 seconds
@@ -888,8 +1163,8 @@ export class PowerSystem {
       onComplete: () => toxic.destroy()
     });
 
-    this.scatterSpirits(player);
-
+    // Ne PAS détacher les spirits du lanceur - seulement ceux des victimes
+    
     this.scene.players.forEach(other => {
       if (this.shouldAffectPlayer(player, other)) {
         const dist = Phaser.Math.Distance.Between(player.x, player.y, other.x, other.y);
@@ -1117,6 +1392,49 @@ export class PowerSystem {
         0xff4500
       );
     }
+  }
+  
+  // Detach and scatter spirits (for water power)
+  detachAndScatterSpirits(player, baseAngle) {
+    // Check if scene and spirits exist
+    if (!this.scene || !this.scene.spirits) {
+      return;
+    }
+    
+    const detachedSpirits = [];
+    
+    // Detach all spirits from player
+    this.scene.spirits.forEach(spirit => {
+      if (spirit.followingPlayer === player) {
+        spirit.setFollowPlayer(null);
+        detachedSpirits.push(spirit);
+      }
+    });
+    
+    // Scatter spirits with water effect
+    detachedSpirits.forEach((spirit, index) => {
+      const scatterAngle = baseAngle + (Math.random() - 0.5) * Math.PI / 2;
+      const scatterDist = Phaser.Math.Between(200, 400);
+      const targetX = spirit.x + Math.cos(scatterAngle) * scatterDist;
+      const targetY = spirit.y + Math.sin(scatterAngle) * scatterDist;
+      
+      // Tint bleu temporaire
+      spirit.setTint(0x0077be);
+      this.scene.time.delayedCall(300, () => {
+        if (spirit && spirit.active) {
+          spirit.clearTint();
+        }
+      });
+      
+      // Disperser le spirit
+      this.scene.tweens.add({
+        targets: spirit,
+        x: targetX,
+        y: targetY,
+        duration: 500,
+        ease: 'Power2'
+      });
+    });
   }
   
   // Detach ALL spirits completely (for fire and water powers)

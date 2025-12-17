@@ -1,265 +1,333 @@
-# Elemental Balls Duel 🎃
+# Elemental Magnetism 🎮
 
-A Phaser 3 game inspired by Google's Great Ghoul Duel Halloween game. Compete with up to 8 players (AI-controlled or human) to collect cute neutral balls using elemental pets!
+Un jeu Phaser 3 avec **deux modes de jeu** : un mode collection d'esprits inspiré de Great Ghoul Duel de Google, et un mode plateforme avec 18 chapitres élémentaires.
 
-## Features
+## 🎯 Modes de Jeu
 
-✨ **16 Elemental Pet Types:**
-- Water 💧 (Level 1)
-- Fire 🔥 (Level 1)
-- Wind 💨 (Level 1)
-- Earth 🌍 (Level 1)
-- Leaf 🍃 (Level 5)
-- Ice ❄️ (Level 7)
-- Glass 🔮 (Level 10)
-- Sand 🏜️ (Level 11)
-- Wood 🪵 (Level 12)
-- Plasma 💥 (Level 13)
-- Toxic ☢️ (Level 13)
-- Thunder ⚡ (Level 15)
-- Shadow 🌑 (Level 17)
-- Light ✨ (Level 17)
-- Iron 🔩 (Level 19)
-- Gold 🏆 (Level 20)
+### Mode Collection (Jeu Principal)
+Compétition jusqu'à 8 joueurs pour collecter des esprits avec vos mascottes élémentaires!
+
+### Mode Plateforme
+Aventure solo à travers 18 chapitres avec ennemis, boss et pouvoirs élémentaires!
+
+---
+
+## 🌟 Mode Collection - Caractéristiques
+
+✨ **17 Types Élémentaires:**
+- Water 💧 (Niveau 1)
+- Fire 🔥 (Niveau 1)
+- Wind 💨 (Niveau 1)
+- Earth 🌍 (Niveau 1)
+- Nature 🍃 (Niveau 5)
+- Ice ❄️ (Niveau 7)
+- Lightning ⚡ (Niveau 10)
+- Metal 🔩 (Niveau 11)
+- Wood 🪵 (Niveau 12)
+- Shadow 🌑 (Niveau 13)
+- Light ✨ (Niveau 13)
+- Poison ☢️ (Niveau 15)
+- Sound 🔊 (Niveau 17)
+- Psychic 🔮 (Niveau 17)
+- Gravity 🌀 (Niveau 19)
+- Time ⏰ (Niveau 20)
+- Space 🌌 (Niveau 21)
 
 🎮 **Gameplay:**
-- Up to 8 players compete simultaneously
-- AI-controlled bots fill empty player slots
-- Collect cute neutral balls with big eyes
-- 3-minute rounds with score tracking
-- Real-time leaderboard
-- Team-based competition with unique elemental bases
+- Jusqu'à 8 joueurs simultanés
+- IA contrôle les emplacements vides
+- Collectez des esprits neutres mignons
+- Rounds de 3 minutes avec suivi de score
+- Classement en temps réel
+- Compétition par équipe avec bases élémentaires uniques
 
-🎁 **Gift System:**
-- **Element Gifts** (Purple) - Unlock additional elemental powers for your team (max 1 gift power at a time)
-- **Time Gifts** (Cyan) - Add 20 seconds to the game timer
-- **Magnetism Gifts** (Yellow) - Attract all nearby balls for 10 seconds
-- Gifts spawn randomly throughout the match
-- Limited capacity: collecting a new gift power replaces the oldest one (FIFO system)
+🎁 **Système de Cadeaux:**
+- **Cadeaux Élémentaires** (Violet) - Débloquez des pouvoirs supplémentaires (max 1 pouvoir cadeau)
+- **Cadeaux Temps** (Cyan) - Ajoutez 20 secondes au chrono
+- **Cadeaux Magnétisme** (Jaune) - Attirez tous les esprits proches pendant 10 secondes
+- Apparition aléatoire durant la partie
+- Capacité limitée : FIFO (premier entré, premier sorti)
 
-⚡ **Power System:**
-- **Primary Power (SPACE)** - Use your elemental pet's unique ability
-  - Charge-based system for human players (fills over time and when collecting balls)
-  - 30-second cooldown for AI players
-- **Gift Powers (1/2/3)** - Activate collected gift powers
-  - 20-second cooldown shared across all gift powers
-  - Display shows countdown or "Ready" status
-- **Debug Mode** - Unlimited power usage (configure in `src/config.js`)
+⚡ **Système de Pouvoirs:**
+- **Pouvoir Principal (ESPACE)** - Capacité unique de votre élément
+  - Système de charge pour joueurs humains
+  - Cooldown 30 secondes pour IA
+- **Pouvoirs Cadeaux (1/2/3)** - Activez les pouvoirs collectés
+  - Cooldown 20 secondes partagé
+- **Mode Debug** - Pouvoirs illimités (configurable dans `src/config.js`)
 
-### Elemental Powers
+### Pouvoirs Élémentaires
 
-Each element has a unique power ability:
+- **Water** 💧 - Vague de recul qui repousse les ennemis ET détache leurs esprits (immunité water) (rayon 3 tuiles + 0.2/niveau)
+- **Fire** 🔥 - Détruit les esprits ennemis, protège les vôtres (rayon 2 tuiles + 0.2/niveau)
+- **Wind** 💨 - Crée une zone tornade avec particules visibles (rayon 1.5 tuiles + 0.2/niveau, 10 secondes)
+- **Earth** 🌍 - Mur de 3 côtés ouvert à droite (5 tuiles, 10 secondes)
+- **Nature** 🍃 - Soigne et booste la vitesse des alliés
+- **Ice** ❄️ - Zone de gel qui stoppe complètement le mouvement (rayon 1.5 tuiles, 5 secondes)
+- **Lightning** ⚡ - Téléporte les ennemis à votre base et vole leurs esprits (zone 10 secondes)
+- **Metal** 🔩 - Magnétisme qui attire tous les esprits (rayon 5 tuiles, 2 secondes)
+- **Wood** 🪵 - Invoque des barrières de bois défensives
+- **Shadow** 🌑 - Trou noir (2 tuiles) avec magnétisme (6 tuiles), fait disparaître les ennemis 5 secondes
+- **Light** ✨ - Téléportation à la base avec +10 bonus, zone de répulsion/soin (3 tuiles)
+- **Poison** ☢️ - Empoisonne les ennemis pendant 12 secondes
+- **Sound** 🔊 - Clone IA qui collecte pendant 20 secondes
+- **Psychic** 💥 - Explosion d'énergie sans disperser les esprits (12s base + 0.2s/niveau)
+- **Gravity** 🌀 - Ralentit les ennemis à 30% dans la zone (rayon 2 tuiles)
+- **Time** ⏰ - [À définir]
+- **Space** 🌌 - Convertit les ennemis en alliés pendant 15 secondes (rayon 4 tuiles)
 
-- **Water** 💧 - Knockback wave that pushes enemies away (3 tile radius + 0.2/level)
-- **Fire** 🔥 - Destroys enemy balls in range, protects own balls (2 tile radius + 0.2/level, 3 tile knockback)
-- **Wind** 💨 - Creates a spinning tornado zone with visible particle rings (1.5 tile radius + 0.2/level, 10 seconds)
-- **Earth** 🌍 - Creates a 3-sided wall barrier with right side open (5 tiles, 10 seconds)
-- **Leaf** 🍃 - Heal and speed boost for allies in range
-- **Ice** ❄️ - Creates a freeze zone that completely stops movement (1.5 tile radius, 5 seconds, auto-removes)
-- **Glass** 🔮 - Creates an AI clone that collects balls for 20 seconds
-- **Sand** 🏜️ - Slows enemies to 30% speed in visible zone (2 tile radius, persistent)
-- **Wood** 🪵 - Summon wood barriers for defense
-- **Plasma** 💥 - Energy blast without scattering balls (12s base + 0.2s/level duration)
-- **Toxic** ☢️ - Poison enemies with 12 second damage over time
-- **Thunder** ⚡ - Teleport enemies to your base and steal their balls (10 second zone)
-- **Shadow** 🌑 - Creates black hole zone (2 tiles) with magnetism (6 tiles) - attracts all balls like Iron when Shadow is inside, makes enemies disappear for 5 seconds, visible white outline for Shadow in black zone
-- **Light** ✨ - Teleports to base with +10 bonus, deposits balls, creates repel/heal zone (3 tiles), smooth camera transition
-- **Iron** 🔩 - Magnetism that attracts all balls in 5-tile radius for 2 seconds
-- **Gold** 🏆 - Convert enemies to your team for 15 seconds in a 4-tile radius
+🤖 **IA Intelligente:**
+- Personnalités uniques pour chaque IA
+- Niveaux d'agressivité variés (30%-80%)
+- Collection stratégique (priorité esprits proches <300 unités)
+- Cooldown pouvoir 30 secondes (pas d'utilisation les 30 premières secondes)
+- Partage de pouvoirs cadeaux optionnel
 
-🤖 **Smart AI:**
-- AI players have unique personalities
-- Different aggression levels (30%-80%)
-- Strategic ball collection (prioritizes close balls <300 units)
-- 30-second power cooldown (no power usage in first 30 seconds)
-- Optional gift power sharing (can use team's collected gift powers)
+📈 **Système de Progression:**
+- **Score Global** - Gagnez des points XP pour chaque victoire (score ÷ 100)
+- **Montée de Niveau** - Débloquez de nouveaux éléments en progressant (1-21)
+- **Progrès Persistants** - Score et niveau sauvegardés dans le navigateur
+- **Récompenses de Victoire** - Seuls les joueurs humains gagnent de l'XP
 
-📈 **Progression System:**
-- **Global Score** - Earn XP points for each victory (game score ÷ 100)
-- **Level Up** - Unlock new elemental pets as you level up:
-  - Level 1: 0-249 points (+250 to level 2)
-  - Level 2: 250-749 points (+500 to level 3)
-  - Level 3: 750-1749 points (+1000 to level 4)
-  - Level 4: 1750-2999 points (+1250 to level 5)
-  - Each subsequent level requires +250 more points
-- **Persistent Progress** - Score and level saved in browser localStorage
-- **Element Unlocking** - New elements unlock at specific levels (see list above)
-- **Victory Rewards** - Only human players earn XP when their team wins
+---
 
-## How to Play
+## 🎮 Mode Plateforme - Caractéristiques
 
-### Controls
-- **Arrow Keys** or **WASD** - Move your elemental pet
-- **SPACE** - Activate your primary elemental power (charge-based)
-- **1** - Use first gift power (20-second cooldown)
-- **2** - Use second gift power (20-second cooldown)
-- **3** - Use third gift power (20-second cooldown)
-- **ENTER** - Return to menu when game ends
-- Navigate close to balls to collect them automatically
+🌍 **18 Chapitres Élémentaires:**
+Chaque élément a son propre chapitre avec ennemis et boss thématiques
 
-### Game Rules
-1. **Select Your Element** - Choose from available elemental pets (unlock more by leveling up!)
-2. **Collect Balls** - Gather as many neutral balls as possible in 3 minutes
-3. **Use Powers Strategically** - Each element has unique abilities to help or hinder
-4. **Collect Gifts** - Find rare gift orbs for bonus powers, time, or magnetism
-5. **Team Victory** - Work with AI teammates to outscore other teams
-6. **Earn XP** - Win to earn experience points and level up
-7. **Unlock Elements** - Reach higher levels to unlock powerful new elemental pets!
+⭐ **Système de Chapitres:**
+- **Chapitres Starter** (Niveau 1): Earth, Fire, Wind, Wood - Sélection aléatoire (exclut votre élément)
+- Progression à travers 18 chapitres complets
+- 68 types d'ennemis avec 8 designs différents
+- 52 boss uniques (dont 18 boss finaux)
+- Chaque chapitre a 4 ennemis élémentaires uniques
 
-### Gameplay Options
-- **Friendly Fire** - Toggle whether ally players are affected by powers
-- **Gift Power Sharing** - Allow AI teammates to use collected gift powers (5% chance per decision)
-- **Choose Terrain** - Enable terrain selection after choosing your element
-- **Player Speed** - Adjust movement speed for all players (100-400)
-- **Ball Speed** - Adjust how fast balls follow players (100-500)
+🎨 **Designs Originaux:**
+- **Personnages**: 8 créatures organiques (slime, fluffy, fish, dragon, beast, crystal, plant, wavy)
+- **Joueurs**: Forme spécifique par élément
+- **Ennemis**: 8 designs variés, couleur selon le chapitre, marchent sur les plateformes
+- **Boss**: Forme dragon agrandie avec couronne dorée
 
-**Note:** Options can be configured in-game or by editing `game-options.json` file. See [GAME-OPTIONS-README.md](./GAME-OPTIONS-README.md) for details.
+🌋 **Environnements:**
+- Sol continu avec trous élémentaires dangereux
+- Types de trous: feu, glace, vent, void, lumière, ombre, foudre, poison
+- Effets visuels: particules animées, lueurs pulsantes
+- Plateformes à différentes hauteurs
+- Arrière-plans dégradés avec particules
 
-### Tips
-- Collect balls to charge your primary power faster
-- Use gift powers strategically during team fights
-- Different elements counter each other - choose wisely!
-- AI teammates will help collect spirits and use powers
-- Return to your team's base to safely deposit spirits
-- Watch for gift orbs - they provide significant advantages!
+🎯 **Système de Combat:**
+- Saut ajusté pour atteindre les plateformes (hauteur 550)
+- Ennemis marchent sur le sol (gravité 800)
+- Quelques ennemis volants (gravité réduite)
+- Système de vie pour joueur, ennemis et boss
+- Pouvoirs élémentaires adaptés au combat
 
-## Installation
+### Contrôles Mode Plateforme
+- **Flèches / WASD** - Déplacement
+- **ESPACE / W / Z / Flèche Haut** - Saut
+- **SHIFT / CTRL / E** - Pouvoir élémentaire
+- **ESC** - Retour au menu
+
+---
+
+## 🎮 Comment Jouer (Mode Collection)
+
+### Contrôles
+- **Flèches** ou **WASD** - Déplacez votre mascotte élémentaire
+- **ESPACE** - Activez votre pouvoir élémentaire principal
+- **1** - Utilisez le premier pouvoir cadeau (cooldown 20s)
+- **2** - Utilisez le deuxième pouvoir cadeau (cooldown 20s)
+- **3** - Utilisez le troisième pouvoir cadeau (cooldown 20s)
+- **ENTRÉE** - Retour au menu en fin de partie
+- Approchez-vous des esprits pour les collecter automatiquement
+
+### Règles du Jeu
+1. **Choisissez Votre Élément** - Sélectionnez parmi les éléments disponibles
+2. **Collectez des Esprits** - Rassemblez un maximum d'esprits en 3 minutes
+3. **Utilisez les Pouvoirs** - Chaque élément a des capacités uniques
+4. **Collectez les Cadeaux** - Trouvez des orbes rares pour des bonus
+5. **Victoire d'Équipe** - Collaborez avec les IA pour battre les autres équipes
+6. **Gagnez de l'XP** - Victoire = points d'expérience
+7. **Débloquez des Éléments** - Montez de niveau pour de nouveaux éléments!
+
+### Options de Jeu
+- **Tir Ami** - Les pouvoirs affectent-ils les alliés?
+- **Partage Cadeaux IA** - Les IA peuvent-elles utiliser vos cadeaux? (5% de chance)
+- **Choix Terrain** - Sélection du terrain après l'élément
+- **Vitesse Joueur** - Ajustez la vitesse de mouvement (100-400)
+- **Vitesse Esprits** - Vitesse de suivi des esprits (100-500)
+
+**Note:** Options configurables en jeu ou via `game-options.json`. Voir [GAME-OPTIONS-README.md](./GAME-OPTIONS-README.md).
+
+### Astuces
+- Collectez des esprits pour charger votre pouvoir plus vite
+- Utilisez les pouvoirs cadeaux stratégiquement
+- Les éléments se contrent mutuellement
+- Les IA alliées aident à collecter
+- Retournez à votre base pour déposer en sécurité
+- Surveillez les cadeaux - avantage significatif!
+
+---
+
+---
+
+## 📦 Installation
 
 ```bash
-# Install dependencies
+# Installer les dépendances
 npm install
 
-# Start development server
+# Démarrer le serveur de développement
 npm run dev
 
-# Build for production
+# Build pour la production
 npm run build
 
-# Preview production build
+# Prévisualiser le build de production
 npm run preview
 ```
 
-## Development
+## 🛠️ Développement
 
-Built with:
-- **Phaser 3.87.0** - HTML5 game framework
-- **Vite 6.0** - Fast build tool and dev server
-- **JavaScript ES6+** - Modern JavaScript
+Construit avec:
+- **Phaser 3.90.0** - Framework de jeu HTML5
+- **Vite 6.0** - Outil de build rapide et serveur de dev
+- **JavaScript ES6+** - JavaScript moderne
 
-## Project Structure
+## 📁 Structure du Projet
 
 ```
 magnetisme/
 ├── src/
 │   ├── scenes/
-│   │   ├── BootScene.js      # Initial loading scene
-│   │   ├── MenuScene.js      # Element selection menu
-│   │   └── GameScene.js      # Main game scene
+│   │   ├── BootScene.js         # Scène de chargement initial
+│   │   ├── MenuScene.js         # Menu sélection d'élément
+│   │   ├── GameScene.js         # Scène principale (collection)
+│   │   ├── PlatformScene.js     # Scène de plateforme
+│   │   ├── ChapterSelectScene.js # Sélection de chapitre
+│   │   └── LevelSelectScene.js  # Sélection de niveau
 │   ├── entities/
-│   │   ├── Player.js         # Player character class
-│   │   ├── PlayerShapes.js   # Visual designs for players
-│   │   ├── Spirit.js         # Collectible spirit class
-│   │   └── Gift.js           # Gift/powerup class
+│   │   ├── Player.js            # Classe joueur (collection)
+│   │   ├── PlayerShapes.js      # 8 designs de créatures
+│   │   ├── Spirit.js            # Classe esprit à collectionner
+│   │   └── Gift.js              # Classe cadeau/powerup
+│   ├── platform/
+│   │   ├── PlatformPlayer.js    # Joueur mode plateforme
+│   │   ├── Enemy.js             # 68 types d'ennemis
+│   │   ├── Boss.js              # 52 boss
+│   │   ├── PlatformConfig.js    # Config plateforme
+│   │   ├── ChapterConfig.js     # 18 chapitres
+│   │   └── EnemyTypes.js        # Types d'ennemis
 │   ├── systems/
-│   │   ├── PowerSystem.js    # Elemental power implementations
-│   │   └── PlayerProgress.js # Level and progression system
+│   │   ├── PowerSystem.js       # Implémentations des pouvoirs
+│   │   ├── PlayerProgress.js    # Système de niveaux
+│   │   └── TerrainSystem.js     # Système de terrain
 │   ├── ai/
-│   │   └── AIController.js   # AI behavior logic
-│   ├── config.js             # Game configuration
-│   └── main.js               # Game entry point
-├── index.html                # HTML entry point
-├── vite.config.js            # Vite configuration
-└── package.json              # Dependencies
+│   │   └── AIController.js      # Logique comportement IA
+│   ├── config.js                # Configuration du jeu
+│   └── main.js                  # Point d'entrée
+├── index.html                   # Point d'entrée HTML
+├── vite.config.js               # Configuration Vite
+├── package.json                 # Dépendances
+├── README.md                    # Ce fichier
+├── PLATFORM-README.md           # Documentation mode plateforme
+└── GAME-OPTIONS-README.md       # Documentation options
 ```
 
-## Game Configuration
+## ⚙️ Configuration du Jeu
 
-Customize the game in `src/config.js`:
+Personnalisez le jeu dans `src/config.js`:
 
-### Core Settings
-- `MAX_PLAYERS` - Maximum number of players (default: 8)
-- `MAX_TEAMS` - Maximum number of teams (default: 4)
-- `SPIRIT_COUNT` - Number of spirits in play (default: 100)
-- `GAME_TIME` - Game duration in seconds (default: 180)
-- `PLAYER_SPEED` - Movement speed (default: 200)
-- `WORLD_WIDTH` / `WORLD_HEIGHT` - Game world size (default: 2560x1920)
-- `VISIBILITY_RANGE` - Fog of war range (default: 320px / 4 tiles)
+### Paramètres Principaux
+- `MAX_PLAYERS` - Nombre maximum de joueurs (défaut: 8)
+- `MAX_TEAMS` - Nombre maximum d'équipes (défaut: 4)
+- `SPIRIT_COUNT` - Nombre d'esprits en jeu (défaut: 100)
+- `GAME_TIME` - Durée du jeu en secondes (défaut: 180)
+- `PLAYER_SPEED` - Vitesse de déplacement (défaut: 200)
+- `WORLD_WIDTH` / `WORLD_HEIGHT` - Taille du monde (défaut: 2560x1920)
+- `VISIBILITY_RANGE` - Portée brouillard de guerre (défaut: 320px / 4 tuiles)
 
-### Power System
-- `POWER_CHARGE_RATE` - Passive charge rate (default: 0.05)
-- `POWER_BONUS_PER_SPIRIT` - Charge gained per spirit collected (default: 2)
-- `MAX_POWER_CHARGE` - Maximum charge capacity (default: 100)
+### Système de Pouvoirs
+- `POWER_CHARGE_RATE` - Taux de charge passif (défaut: 0.05)
+- `POWER_BONUS_PER_SPIRIT` - Charge gagnée par esprit (défaut: 2)
+- `MAX_POWER_CHARGE` - Capacité de charge maximale (défaut: 100)
 
-### Gift System
-- `MAX_GIFT_POWERS` - Maximum gift powers held simultaneously (default: 1, max: 3)
-- Gift power cooldown: 20 seconds (shared)
-- Gift spawn timer: Random intervals
+### Système de Cadeaux
+- `MAX_GIFT_POWERS` - Pouvoirs cadeaux max simultanés (défaut: 1, max: 3)
+- Cooldown pouvoirs cadeaux: 20 secondes (partagé)
+- Timer apparition cadeaux: Intervalles aléatoires
 
-### Gameplay Options
-- `FRIENDLY_FIRE` - Allies affected by powers (default: true)
-- `DEBUG_MODE` - **Enable to show all elements, next level info, and unlimited powers** (default: false)
+### Options de Gameplay
+- `FRIENDLY_FIRE` - Alliés affectés par les pouvoirs (défaut: true)
+- `DEBUG_MODE` - **Active tous les éléments, infos niveau suivant, et pouvoirs illimités** (défaut: false)
 
-### Element Configuration
-Each element in `ELEMENTS` has:
-- `name` - Display name
-- `color` - Team color (hex)
-- `key` - Internal identifier
-- `requiredLevel` - Level needed to unlock (1-20)
+## 🐛 Mode Debug
 
-## Debug Mode
-
-To enable debug features, edit `src/config.js`:
+Pour activer les fonctionnalités debug, éditez `src/config.js`:
 
 ```javascript
 export const GAME_CONFIG = {
-  // ... other settings ...
-  DEBUG_MODE: true  // Enable debug mode
+  // ... autres paramètres ...
+  DEBUG_MODE: true  // Activer le mode debug
 };
 ```
 
-Debug mode enables:
-- ✅ View all 16 elements (including locked ones)
-- ✅ See next level requirements
-- ✅ Unlimited primary power usage (no charge needed)
-- ✅ Unlimited gift power usage (no cooldown)
+Le mode debug active:
+- ✅ Voir tous les 17 éléments (y compris verrouillés)
+- ✅ Voir les requis du niveau suivant
+- ✅ Pouvoirs primaires illimités (pas de charge nécessaire)
+- ✅ Pouvoirs cadeaux illimités (pas de cooldown)
 
-## Progression System Details
+## 📊 Détails Système de Progression
 
-### Score Calculation
-- Victory XP = (Team's Final Spirit Count) ÷ 100
-- Example: Winning with 150 spirits = 1 XP point
+### Calcul du Score
+- XP de Victoire = (Nombre d'Esprits de l'Équipe) ÷ 100
+- Exemple: Gagner avec 150 esprits = 1 point XP
 
-### Level Thresholds
-| Level | Score Required | Points to Next |
-|-------|---------------|----------------|
-| 1     | 0             | 250            |
-| 2     | 250           | 500            |
-| 3     | 750           | 1000           |
-| 4     | 1750          | 1250           |
-| 5     | 3000          | 1500           |
-| 6+    | ...           | +250 each      |
+### Seuils de Niveaux
+| Niveau | Score Requis | Points au Suivant |
+|--------|--------------|-------------------|
+| 1      | 0            | 100               |
+| 2      | 100          | 150               |
+| 3      | 250          | 200               |
+| 4      | 450          | 250               |
+| 5      | 700          | 300               |
+| 6      | 1000         | 350               |
+| 7      | 1350         | 400               |
+| 8+     | ...          | +50 chaque        |
 
-### Element Unlock Progression
-- **Tier 1** (Level 1): Water, Fire, Wind, Earth
-- **Tier 2** (Level 5-7): Leaf, Ice
-- **Tier 3** (Level 10-13): Glass, Sand, Wood, Plasma, Toxic
-- **Tier 4** (Level 15-17): Thunder, Shadow, Light
-- **Tier 5** (Level 19-20): Iron, Gold
+**Formule**: Chaque niveau nécessite 100 + (niveau - 1) × 50 points
+- Niveau 1→2: 100 points
+- Niveau 2→3: 150 points
+- Niveau 3→4: 200 points
+- etc.
 
-### Data Persistence
-- Progress saved to browser `localStorage`
-- Key: `magnetisme_progress`
-- Stored data: `globalScore`, `level`, `victories`
-- Persists across browser sessions
+### Progression Déblocage Éléments
+- **Tier 1** (Niveau 1): Water, Fire, Wind, Earth
+- **Tier 2** (Niveau 5-7): Nature, Ice
+- **Tier 3** (Niveau 10-13): Lightning, Metal, Wood, Shadow, Light
+- **Tier 4** (Niveau 15-17): Poison, Sound, Psychic
+- **Tier 5** (Niveau 19-21): Gravity, Time, Space
 
-## Credits
-
-Inspired by Google's Great Ghoul Duel Halloween 2022 game.
-
-## License
-
-MIT License - Feel free to use and modify!
+### Persistance des Données
+- Progrès sauvegardé dans `localStorage` du navigateur
+- Clé: `magnetisme_progress`
+- Données stockées: `globalScore`, `level`, `victories`
+- Persiste entre les sessions du navigateur
 
 ---
 
-**Have fun collecting spirits! 👻✨**
+## 🎯 Crédits
+
+Inspiré par le jeu Halloween 2022 Great Ghoul Duel de Google.
+
+Mode plateforme original avec 18 chapitres élémentaires, 68 ennemis et 52 boss.
+
+## 📄 Licence
+
+Licence MIT - Libre d'utilisation et de modification!
+
+---
+
+**Amusez-vous à collecter des esprits et à vaincre des boss! 👻✨🎮**

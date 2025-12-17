@@ -20,6 +20,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    
+    // Mode debug : afficher la hitbox
+    if (GAME_CONFIG.DEBUG_SHOW_HITBOXES) {
+      this.body.debugShowBody = true;
+      this.body.debugBodyColor = 0xff0000;
+    }
 
     this.element = element;
     this.playerId = playerId;
@@ -79,6 +85,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     // Update name tag position
     if (this.nameText) {
       this.nameText.setPosition(this.x, this.y - 35);
+    }
+    
+    // Orienter les joueurs poisson selon leur direction de déplacement
+    if (this.element && this.element.key === 'water' && this.body) {
+      if (this.body.velocity.x < -10) {
+        this.setFlipX(true); // Regarder à gauche
+      } else if (this.body.velocity.x > 10) {
+        this.setFlipX(false); // Regarder à droite
+      }
     }
   }
 

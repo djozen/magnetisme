@@ -19,6 +19,8 @@ export const ELEMENTS = {
 };
 
 export const GAME_CONFIG = {
+  // Mode Debug - Affichage
+  CAMERA_ZOOM: 1.0, // Zoom de la caméra (0.5 = dézoomé, 1.0 = normal, 1.5 = zoomé) - Valeurs > 1.0 peuvent détériorer la qualité
   MAX_PLAYERS: 8,
   MAX_TEAMS: 4,
   PLAYERS_PER_TEAM: 2,
@@ -43,8 +45,9 @@ export const GAME_CONFIG = {
   FRIENDLY_FIRE: true,  // Les pouvoirs affectent les alliés (false = immunité alliée)
   GIFT_POWER_KEY: 'CTRL',  // Key to activate gift powers (default: CTRL)
   MAX_GIFT_POWERS: 3,  // Maximum number of gift powers that can be held simultaneously (1-3)
-  DEBUG_MODE: false,  // Debug mode: show all elements, next level info, unlimited powers
-  DEBUG_LEVEL: 5  // Niveau en mode debug (1-20, affecte l'agressivité des IA)
+  DEBUG_MODE: true,  // Debug mode: show all elements, next level info, unlimited powers
+  DEBUG_LEVEL: 5,  // Niveau en mode debug (1-20, affecte l'agressivité des IA)
+  DEBUG_SHOW_HITBOXES: false, // Afficher les hitboxes de collision (true/false)
 };
 
 export const TEAM_COLORS = [

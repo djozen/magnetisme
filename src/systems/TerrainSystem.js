@@ -6,7 +6,7 @@ export const TERRAINS = {
     key: 'water',
     name: 'Aquatic Realm',
     requiredLevel: 8,
-    useNaturalBase: true,
+    useNaturalBase: false,
     description: 'Underwater kingdom with storms'
   },
   waterLight: {
@@ -139,6 +139,11 @@ export class TerrainSystem {
   selectTerrain(playerElement, players, selectedTerrain = null) {
     // Manual selection
     if (selectedTerrain) {
+      // En mode DEBUG, toujours retourner le terrain sélectionné sans vérifier le niveau
+      if (this.scene.debugMode) {
+        return TERRAINS[selectedTerrain.key];
+      }
+      
       // Si c'est water, vérifier le niveau du joueur
       if (selectedTerrain.key === 'water') {
         const humanPlayer = players.find(p => !p.isAI);
@@ -154,15 +159,15 @@ export class TerrainSystem {
     const enemyAI = players.find(p => p.isAI && p.teamId !== humanTeam);
 
     if (enemyAI && enemyAI.element) {
-      // Si l'ennemi est water, vérifier le niveau
-      if (enemyAI.element.key === 'water') {
+      // Si l'ennemi est water, vérifier le niveau (sauf en DEBUG)
+      if (enemyAI.element.key === 'water' && !this.scene.debugMode) {
         const playerLevel = humanPlayer ? humanPlayer.level : 1;
         return playerLevel >= 8 ? TERRAINS.water : TERRAINS.waterLight;
       }
       return TERRAINS[enemyAI.element.key];
     } else if (playerElement) {
-      // Si le joueur est water, vérifier le niveau
-      if (playerElement.key === 'water') {
+      // Si le joueur est water, vérifier le niveau (sauf en DEBUG)
+      if (playerElement.key === 'water' && !this.scene.debugMode) {
         const playerLevel = humanPlayer ? humanPlayer.level : 1;
         return playerLevel >= 8 ? TERRAINS.water : TERRAINS.waterLight;
       }
@@ -179,11 +184,13 @@ export class TerrainSystem {
     this.basePositions = basePositions;
     this.clearTerrain();
 
-    // Create base environment
-    if (terrain.useNaturalBase) {
-      this.createNaturalBase(width, height);
-    } else {
-      this.createThemedBackground(terrain, width, height);
+    // Create base environment (skip for water terrain - fully custom)
+    if (terrain.key !== 'water') {
+      if (terrain.useNaturalBase) {
+        this.createNaturalBase(width, height);
+      } else {
+        this.createThemedBackground(terrain, width, height);
+      }
     }
 
     // Create terrain-specific elements
@@ -260,13 +267,13 @@ export class TerrainSystem {
   
   // Helper method to check if position is near any base
   // Minimum 2 tuiles (160px) pour tous les obstacles
-  isNearBase(x, y, minDistance = 160) {
+  isNearBase(x, y, minDistance = 80) {
     if (!this.basePositions || this.basePositions.length === 0) {
       return false;
     }
     
-    // Forcer un minimum de 2 tuiles (160px)
-    const actualMinDistance = Math.max(minDistance, 160);
+    // Forcer un minimum de 1 tuile (80px)
+    const actualMinDistance = Math.max(minDistance, 80);
     
     return this.basePositions.some(base => {
       const dist = Phaser.Math.Distance.Between(x, y, base.x, base.y);
@@ -570,108 +577,368 @@ export class TerrainSystem {
 
   // WATER TERRAIN - Underwater with storms (Level 8+)
   createWaterTerrain(width, height) {
-    // Base naturelle visible (herbe verte + arbres + eau + pierres + ponts)
-    // Créée par createNaturalEnvironment dans GameScene
+    console.log('Creating Aquatic Realm terrain!');
     
-    // Underwater blue tint overlay (léger)
-    const waterTint = this.scene.add.graphics();
-    waterTint.fillStyle(0x1e90ff, 0.15);
-    waterTint.fillRect(0, 0, width, height);
-    waterTint.setDepth(1);
-    this.effects.push(waterTint);
+    // 1. Sol de sable
+    const sand = this.scene.add.graphics();
+    sand.fillStyle(0xc2b280, 1);
+    sand.fillRect(0, 0, width, height);
+    sand.setDepth(1);
+    this.effects.push(sand);
 
-    // Lacs profonds avec ponts en bois (2-3)
-    const lakeCount = Phaser.Math.Between(2, 3);
-    const lakes = [];
-    let attempts = 0;
-    const maxAttempts = 50;
+    // 2. Voile bleu transparent (effet sous-marin)
+    const blueVeil = this.scene.add.graphics();
+    blueVeil.fillStyle(0x1e90ff, 0.15);
+    blueVeil.fillRect(0, 0, width, height);
+    blueVeil.setDepth(2);
+    this.effects.push(blueVeil);
+
+    // 3. Vagues animées (effet visuel)
+    const waveCount = 6;
+    for (let w = 0; w < waveCount; w++) {
+      const wave = this.scene.add.graphics();
+      const y = 60 + w * 100;
+      wave.lineStyle(10, 0x87cefa, 0.18 + 0.08 * Math.random());
+      wave.beginPath();
+      for (let x = 0; x < width; x += 30) {
+        const waveY = y + Math.sin((x + w * 60) / 60) * 12;
+        wave.lineTo(x, waveY);
+      }
+      wave.strokePath();
+      wave.setDepth(2);
+      this.effects.push(wave);
+      // Animation oscillation
+      this.scene.tweens.add({
+        targets: wave,
+        alpha: { from: 0.18, to: 0.32 },
+        x: "+=16",
+        duration: 2200 + Math.random() * 1800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          wave.clear();
+          wave.lineStyle(10, 0x87cefa, wave.alpha);
+          wave.beginPath();
+          for (let x = 0; x < width; x += 30) {
+            const waveY = y + Math.sin((x + w * 60 + wave.x) / 60) * 12;
+            wave.lineTo(x, waveY);
+          }
+          wave.strokePath();
+        }
+      });
+    }
+
+    // 4. Amas d'algues décoratives - Beaucoup plus nombreuses avec certains très grands
+    for (let i = 0; i < 40; i++) { // Augmenté à 40 amas
+      const clusterX = Phaser.Math.Between(80, width - 80);
+      const clusterY = Phaser.Math.Between(80, height - 80);
+      // 20% de chance d'avoir un GROS amas (50-60 algues), sinon petit amas (3-5)
+      const isLargeCluster = Math.random() < 0.2;
+      const algaeInCluster = isLargeCluster ? Phaser.Math.Between(50, 60) : Phaser.Math.Between(3, 5);
+      const spreadRadius = isLargeCluster ? 120 : 40; // Plus étalé pour les gros amas
+      
+      for (let j = 0; j < algaeInCluster; j++) {
+        const algaeX = clusterX + Phaser.Math.Between(-spreadRadius, spreadRadius);
+        const algaeY = clusterY + Phaser.Math.Between(-spreadRadius, spreadRadius);
+        const algaeHeight = Phaser.Math.Between(40, 80);
+        
+        const algae = this.scene.add.graphics();
+        algae.fillStyle(0x2e8b57, 0.5);
+        algae.fillEllipse(algaeX, algaeY, 18, 10);
+        
+        // Tiges ondulées
+        for (let s = 0; s < 3; s++) {
+          const offsetX = s * 6 - 6;
+          algae.beginPath();
+          algae.moveTo(algaeX + offsetX, algaeY);
+          for (let h = 0; h < algaeHeight; h += 8) {
+            const waveX = algaeX + offsetX + Math.sin(h / 8) * 4;
+            algae.lineTo(waveX, algaeY - h);
+          }
+          algae.lineStyle(3, 0x228b22, 0.5);
+          algae.strokePath();
+        }
+        algae.setDepth(10);  // Depth supérieur aux spirits (9) pour les cacher
+        this.effects.push(algae);
+      }
+    }
+
+    // 6. Obstacles : pierres (style sand + algues), trésors (style gold), épaves (design complexe)
+    const obstacleTypes = ['rock', 'treasure', 'wreck'];
+    for (let i = 0; i < 10; i++) {
+      const type = obstacleTypes[Phaser.Math.Between(0, obstacleTypes.length - 1)];
+      const x = Phaser.Math.Between(80, width - 80);
+      const y = Phaser.Math.Between(80, height - 80);
+      if (this.isNearBase(x, y, 300)) continue;
+      let obs;
+      
+      if (type === 'rock') {
+        // Rocher style terrain sand avec forme irrégulière
+        const rockSize = Phaser.Math.Between(35, 60);
+        const rock = this.scene.add.graphics();
+        rock.fillStyle(0x708090, 1); // Gris pierre
+        
+        // Forme irrégulière (polygone)
+        rock.beginPath();
+        rock.moveTo(x, y - rockSize * 0.8);
+        rock.lineTo(x + rockSize * 0.6, y - rockSize * 0.4);
+        rock.lineTo(x + rockSize * 0.7, y + rockSize * 0.3);
+        rock.lineTo(x + rockSize * 0.2, y + rockSize * 0.5);
+        rock.lineTo(x - rockSize * 0.5, y + rockSize * 0.4);
+        rock.lineTo(x - rockSize * 0.6, y - rockSize * 0.2);
+        rock.closePath();
+        rock.fillPath();
+        
+        // Ombrage
+        rock.fillStyle(0x556b7f, 0.5);
+        rock.fillCircle(x + rockSize * 0.2, y + rockSize * 0.1, rockSize * 0.3);
+        
+        // Highlight
+        rock.fillStyle(0x8a9aa8, 0.4);
+        rock.fillCircle(x - rockSize * 0.2, y - rockSize * 0.3, rockSize * 0.25);
+        
+        rock.setDepth(6);
+        this.effects.push(rock);
+        
+        // Algues sur la pierre (2-3 petites algues)
+        const algaeCount = Phaser.Math.Between(2, 3);
+        for (let a = 0; a < algaeCount; a++) {
+          const algae = this.scene.add.graphics();
+          algae.fillStyle(0x2e8b57, 0.6);
+          const algaeX = x + Phaser.Math.Between(-15, 15);
+          const algaeY = y - rockSize * 0.3;
+          algae.fillEllipse(algaeX, algaeY, 12, 6);
+          
+          // Tige courte
+          algae.beginPath();
+          algae.moveTo(algaeX, algaeY);
+          for (let h = 0; h < 20; h += 5) {
+            const waveX = algaeX + Math.sin(h / 5) * 3;
+            algae.lineTo(waveX, algaeY - h);
+          }
+          algae.lineStyle(2, 0x228b22, 0.5);
+          algae.strokePath();
+          algae.setDepth(7);
+          this.effects.push(algae);
+        }
+        
+        // Obstacle physique (pierre)
+        obs = this.scene.add.circle(x, y, rockSize * 0.5, 0x000000, 0);
+        this.scene.physics.add.existing(obs, true);
+        this.scene.obstacles.add(obs);
+        this.effects.push(obs);
+        
+      } else if (type === 'treasure') {
+        // Trésor style terrain gold (coffre avec pièces)
+        const chest = this.scene.add.graphics();
+        // Coffre en bois
+        chest.fillStyle(0x8b4513, 1);
+        chest.fillRoundedRect(x - 25, y - 15, 50, 35, 3);
+        // Couvercle doré (courbé)
+        chest.fillStyle(0xdaa520, 1);
+        chest.fillEllipse(x, y - 20, 25, 15);
+        chest.fillRect(x - 25, y - 20, 50, 5);
+        // Bordure dorée
+        chest.lineStyle(2, 0xffd700);
+        chest.strokeRoundedRect(x - 25, y - 15, 50, 35, 3);
+        // Pièces qui débordent
+        chest.fillStyle(0xffd700, 1);
+        for (let c = 0; c < 8; c++) {
+          const coinX = x + Phaser.Math.Between(-30, 30);
+          const coinY = y + Phaser.Math.Between(-25, 25);
+          chest.fillCircle(coinX, coinY, 4);
+          chest.fillStyle(0xffed4e, 1);
+          chest.fillCircle(coinX, coinY, 2.5);
+          chest.fillStyle(0xffd700, 1);
+        }
+        chest.setDepth(6);
+        this.effects.push(chest);
+        
+        // Obstacle physique (trésor)
+        obs = this.scene.add.rectangle(x, y, 50, 35, 0x000000, 0);
+        this.scene.physics.add.existing(obs, true);
+        this.scene.obstacles.add(obs);
+        this.effects.push(obs);
+        
+      } else if (type === 'wreck') {
+        // Épave de bateau BEAUCOUP plus grande et complexe
+        const wreck = this.scene.add.graphics();
+        const angle = Phaser.Math.Between(-30, 30);
+        const scale = Phaser.Math.FloatBetween(2.0, 3.0); // BEAUCOUP plus grande (était 1.2-1.8)
+        
+        // Coque principale inférieure (plus sombre)
+        wreck.fillStyle(0x6d4c29, 1);
+        wreck.fillRoundedRect(x - 60 * scale, y + 5 * scale, 120 * scale, 25 * scale, 5);
+        
+        // Coque principale supérieure
+        wreck.fillStyle(0x8b5a2b, 1);
+        wreck.fillRoundedRect(x - 55 * scale, y - 15 * scale, 110 * scale, 35 * scale, 5);
+        
+        // Pont supérieur
+        wreck.fillStyle(0xa0522d, 1);
+        wreck.fillRect(x - 48 * scale, y - 8 * scale, 96 * scale, 8 * scale);
+        
+        // Cabine principale (rectangulaire)
+        wreck.fillStyle(0x8b5a2b, 1);
+        wreck.fillRoundedRect(x - 20 * scale, y - 25 * scale, 40 * scale, 18 * scale, 3);
+        
+        // Cabine arrière (plus petite)
+        wreck.fillRoundedRect(x - 40 * scale, y - 22 * scale, 18 * scale, 15 * scale, 3);
+        
+        // Grand mât cassé principal
+        wreck.fillStyle(0xdeb887, 1);
+        wreck.fillRect(x + 25 * scale, y - 70 * scale, 10 * scale, 55 * scale);
+        
+        // Deuxième mât (plus petit, oblique)
+        wreck.fillRect(x - 15 * scale, y - 50 * scale, 8 * scale, 35 * scale);
+        
+        // Grande voile déchirée (principale)
+        wreck.fillStyle(0xf5f5dc, 0.6);
+        wreck.beginPath();
+        wreck.moveTo(x + 25 * scale, y - 65 * scale);
+        wreck.lineTo(x + 60 * scale, y - 55 * scale);
+        wreck.lineTo(x + 50 * scale, y - 30 * scale);
+        wreck.lineTo(x + 25 * scale, y - 35 * scale);
+        wreck.closePath();
+        wreck.fillPath();
+        
+        // Deuxième voile (plus petite)
+        wreck.beginPath();
+        wreck.moveTo(x - 15 * scale, y - 45 * scale);
+        wreck.lineTo(x + 5 * scale, y - 38 * scale);
+        wreck.lineTo(x, y - 20 * scale);
+        wreck.lineTo(x - 15 * scale, y - 25 * scale);
+        wreck.closePath();
+        wreck.fillPath();
+        
+        // Planches cassées (détails)
+        wreck.fillStyle(0xa0522d, 1);
+        wreck.fillRect(x - 45 * scale, y - 12 * scale, 35 * scale, 7 * scale);
+        wreck.fillRect(x + 15 * scale, y + 4 * scale, 30 * scale, 6 * scale);
+        wreck.fillRect(x - 25 * scale, y + 8 * scale, 28 * scale, 8 * scale);
+        
+        // Hublots (plusieurs)
+        wreck.fillStyle(0x4682b4, 0.7);
+        wreck.fillCircle(x - 35 * scale, y, 5 * scale);
+        wreck.fillCircle(x - 15 * scale, y, 5 * scale);
+        wreck.fillCircle(x + 5 * scale, y, 5 * scale);
+        wreck.fillCircle(x + 25 * scale, y, 5 * scale);
+        
+        // 70% de chance d'avoir un GROS amas d'or (au lieu de 50%)
+        if (Math.random() < 0.7) {
+          wreck.fillStyle(0xffd700, 1);
+          for (let c = 0; c < 25; c++) { // 25 pièces au lieu de 15
+            const coinX = x + Phaser.Math.Between(-60 * scale, -30 * scale);
+            const coinY = y + Phaser.Math.Between(-5 * scale, 20 * scale);
+            wreck.fillCircle(coinX, coinY, 5);
+            wreck.fillStyle(0xffed4e, 1);
+            wreck.fillCircle(coinX, coinY, 3);
+            wreck.fillStyle(0xffd700, 1);
+          }
+        }
+        
+        // Appliquer rotation globale
+        wreck.setAngle(angle);
+        wreck.setDepth(6);
+        this.effects.push(wreck);
+        
+        // Obstacle physique (beaucoup plus grand) - Les épaves sont des obstacles
+        obs = this.scene.add.rectangle(x, y, 120 * scale, 65 * scale, 0x000000, 0);
+        obs.setAngle(angle);
+        this.scene.physics.add.existing(obs, true);
+        this.scene.obstacles.add(obs);
+        this.effects.push(obs);
+      }
+    }
+
+    // 7. Poissons animés (5 types)
+    const fishColors = [0xff6347, 0x4682b4, 0x32cd32, 0xffc0cb, 0xffff00];
+    for (let i = 0; i < 12; i++) {
+      const color = fishColors[i % fishColors.length];
+      const fish = this.scene.add.graphics();
+      const fx = Phaser.Math.Between(60, width - 60);
+      const fy = Phaser.Math.Between(60, height - 60);
+      // Corps
+      fish.fillStyle(color, 0.85);
+      fish.fillEllipse(fx, fy, 22, 10);
+      // Queue
+      fish.fillStyle(color, 0.7);
+      fish.beginPath();
+      fish.moveTo(fx - 10, fy);
+      fish.lineTo(fx - 22, fy - 7);
+      fish.lineTo(fx - 22, fy + 7);
+      fish.closePath();
+      fish.fillPath();
+      // Oeil
+      fish.fillStyle(0x000000, 1);
+      fish.fillCircle(fx + 7, fy - 2, 1.5);
+      fish.setDepth(7);  // Décor, inférieur aux spirits (9)
+      this.effects.push(fish);
+      
+      // Animation nage avec orientation
+      const targetX = fx + Phaser.Math.Between(-80, 80);
+      const targetY = fy + Phaser.Math.Between(-30, 30);
+      let lastX = fx;
+      
+      this.scene.tweens.add({
+        targets: fish,
+        x: targetX,
+        y: targetY,
+        duration: Phaser.Math.Between(3500, 6000),
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 2000,
+        onUpdate: (tween, target) => {
+          // Orienter le poisson selon sa direction actuelle
+          const currentX = target.x;
+          const deltaX = currentX - lastX;
+          if (Math.abs(deltaX) > 0.5) { // Seuil pour éviter les oscillations
+            if (deltaX < 0) {
+              target.scaleX = -1; // Regarder à gauche
+            } else {
+              target.scaleX = 1;  // Regarder à droite
+            }
+            lastX = currentX;
+          }
+        }
+      });
+    }
+
+    // 9. Tornades permanentes (3 max) comme waterLight terrain
+    const tornadoCount = 3;
+    const tornados = [];
+    let tornadoAttempts = 0;
+    const minTornadoDist = 500; // Distance minimale entre tornades
     
-    while (lakes.length < lakeCount && attempts < maxAttempts) {
-      attempts++;
-      const lakeX = Phaser.Math.Between(200, width - 200);
-      const lakeY = Phaser.Math.Between(200, height - 200);
-      const lakeRadius = Phaser.Math.Between(80, 120);
+    while (tornados.length < tornadoCount && tornadoAttempts < 50) {
+      tornadoAttempts++;
+      const tornadoX = Phaser.Math.Between(300, width - 300);
+      const tornadoY = Phaser.Math.Between(300, height - 300);
       
       // Skip if near base
-      if (this.isNearBase(lakeX, lakeY, 250)) {
+      if (this.isNearBase(tornadoX, tornadoY, 350)) {
         continue;
       }
       
-      // Lac bleu foncé - VISUEL SEULEMENT
-      const lake = this.scene.add.circle(lakeX, lakeY, lakeRadius, 0x00008b, 1);
-      lake.setDepth(1);
-      this.effects.push(lake);
-      
-      lakes.push({ x: lakeX, y: lakeY, radius: lakeRadius });
-    }
-    
-    // Ponts en bois traversant les lacs
-    lakes.forEach((lake) => {
-      const bridgeAngle = Math.random() * Math.PI * 2;
-      this.createBridgeWithHazardZone('water', lake.x, lake.y, lake.radius, bridgeAngle, 0x00008b);
-    });
-
-    // Quelques algues décoratives flottantes (non-blocking)
-    for (let i = 0; i < 12; i++) {
-      const algaeX = Phaser.Math.Between(50, width - 50);
-      const algaeY = Phaser.Math.Between(50, height - 50);
-      const algaeHeight = Phaser.Math.Between(40, 60);
-      
-      const algae = this.scene.add.graphics();
-      algae.fillStyle(0x2e8b57, 0.4);
-      algae.fillEllipse(algaeX, algaeY, 15, 8);
-      
-      // Add wavy stems
-      for (let s = 0; s < 3; s++) {
-        const offsetX = s * 6 - 6;
-        algae.beginPath();
-        algae.moveTo(algaeX + offsetX, algaeY);
-        
-        for (let h = 0; h < algaeHeight; h += 8) {
-          const waveX = algaeX + offsetX + Math.sin(h / 8) * 4;
-          algae.lineTo(waveX, algaeY - h);
+      // Check distance from other tornados
+      let tooClose = false;
+      for (const other of tornados) {
+        const dist = Phaser.Math.Distance.Between(tornadoX, tornadoY, other.x, other.y);
+        if (dist < minTornadoDist) {
+          tooClose = true;
+          break;
         }
-        algae.lineStyle(3, 0x228b22, 0.5);
-        algae.strokePath();
       }
       
-      algae.setDepth(2);
-      this.effects.push(algae);
+      if (!tooClose) {
+        tornados.push({ x: tornadoX, y: tornadoY });
+        this.createWindPowerZone(tornadoX, tornadoY);
+      }
     }
 
-    // Bubbles animation
-    for (let i = 0; i < 15; i++) {
-      const bubbleX = Phaser.Math.Between(0, width);
-      const bubbleY = Phaser.Math.Between(0, height);
-      
-      const bubble = this.scene.add.circle(bubbleX, bubbleY, Phaser.Math.Between(2, 5), 0xffffff, 0.4);
-      bubble.setDepth(3);
-      
-      this.scene.tweens.add({
-        targets: bubble,
-        y: bubbleY - Phaser.Math.Between(100, 200),
-        alpha: 0,
-        duration: Phaser.Math.Between(2000, 4000),
-        repeat: -1,
-        delay: Math.random() * 2000
-      });
-      
-      this.effects.push(bubble);
-    }
-
-    // Rare tornadoes (water spouts)
-    const tornadoCount = Phaser.Math.Between(1, 2);
-    for (let i = 0; i < tornadoCount; i++) {
-      const tornadoX = Phaser.Math.Between(250, width - 250);
-      const tornadoY = Phaser.Math.Between(250, height - 250);
-      this.createTornado(tornadoX, tornadoY);
-    }
-
-    // Rain zones
+    // 10. Zones de pluie (pas d'éclairs)
     this.createRainZones(width, height);
-    
-    // Lightning arcs
-    this.createLightningHazard(width, height);
   }
 
   // WATER LIGHT TERRAIN (Level 1-7) - Rainy Plains like Wind
@@ -4575,20 +4842,37 @@ export class TerrainSystem {
 
   // Create tornado hazard (Wind power effect)
   createTornado(x, y) {
-    // Tornado visual
+    // Tornado visual - PLUS VISIBLE avec plusieurs couches
     const tornado = this.scene.add.graphics();
-    tornado.lineStyle(3, 0xaaaaaa, 0.6);
     
-    // Spiral shape
+    // Couche extérieure (bleu-gris pour contraste sous-marin)
+    tornado.lineStyle(5, 0x6495ed, 0.5);
     for (let i = 0; i < 30; i++) {
       const angle = (i / 30) * Math.PI * 4;
-      const radius = (i / 30) * 40;
+      const radius = (i / 30) * 50;
       const px = x + Math.cos(angle) * radius;
       const py = y + Math.sin(angle) * radius - (i * 2);
       
       if (i > 0) {
         const prevAngle = ((i - 1) / 30) * Math.PI * 4;
-        const prevRadius = ((i - 1) / 30) * 40;
+        const prevRadius = ((i - 1) / 30) * 50;
+        const prevX = x + Math.cos(prevAngle) * prevRadius;
+        const prevY = y + Math.sin(prevAngle) * prevRadius - ((i - 1) * 2);
+        tornado.lineBetween(prevX, prevY, px, py);
+      }
+    }
+    
+    // Couche intérieure (blanc pour effet tourbillon)
+    tornado.lineStyle(3, 0xffffff, 0.7);
+    for (let i = 0; i < 30; i++) {
+      const angle = (i / 30) * Math.PI * 4;
+      const radius = (i / 30) * 35;
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius - (i * 2);
+      
+      if (i > 0) {
+        const prevAngle = ((i - 1) / 30) * Math.PI * 4;
+        const prevRadius = ((i - 1) / 30) * 35;
         const prevX = x + Math.cos(prevAngle) * prevRadius;
         const prevY = y + Math.sin(prevAngle) * prevRadius - ((i - 1) * 2);
         tornado.lineBetween(prevX, prevY, px, py);
@@ -5176,96 +5460,131 @@ export class TerrainSystem {
   }
 
   // Create light beam hazards for Light terrain
-  // Faisceaux courts (colonnes de lumière) ET zones de lumière avec téléportation
+  // Beams verticaux avec taille limitée + cercles rayonnants pour téléportation
   createLightBeams(width, height) {
-    const lightElements = []; // Stocker tous les faisceaux et zones pour la téléportation
+    const lightElements = []; // Stocker tous les éléments pour la téléportation
     
-    // Créer 3-5 faisceaux courts (colonnes de lumière blanche)
-    const beamCount = Phaser.Math.Between(3, 5);
+    // Créer 4-6 éléments lumineux (mélange de beams et cercles)
+    const elementCount = Phaser.Math.Between(4, 6);
     
-    for (let i = 0; i < beamCount; i++) {
-      const beamX = Phaser.Math.Between(200, width - 200);
-      const beamY = Phaser.Math.Between(200, height - 200);
-      const beamHeight = Phaser.Math.Between(300, 500); // Faisceaux courts, pas toute la hauteur
+    for (let i = 0; i < elementCount; i++) {
+      const elemX = Phaser.Math.Between(200, width - 200);
+      const elemY = Phaser.Math.Between(200, height - 200);
       
-      // Colonne de lumière blanche (rectangle vertical court)
-      const beam = this.scene.add.graphics();
-      beam.fillStyle(0xffffff, 0.7);
-      beam.fillRect(beamX - 20, beamY - beamHeight/2, 40, beamHeight);
+      // 50% chance beam, 50% chance cercle rayonnant
+      const isBeam = Math.random() < 0.5;
       
-      // Bordure lumineuse
-      beam.lineStyle(3, 0xfffacd, 0.9);
-      beam.strokeRect(beamX - 20, beamY - beamHeight/2, 40, beamHeight);
-      
-      beam.setDepth(3);
-      this.effects.push(beam);
-      
-      // Orbe lumineux au centre
-      const orb = this.scene.add.circle(beamX, beamY, 25, 0xffff00, 0.9);
-      orb.setDepth(4);
-      this.effects.push(orb);
-      
-      // Pulsation
-      this.scene.tweens.add({
-        targets: [beam, orb],
-        alpha: { from: 0.7, to: 0.4 },
-        duration: 1500,
-        yoyo: true,
-        repeat: -1
-      });
-      
-      // Particules de lumière montantes
-      for (let p = 0; p < 5; p++) {
-        const particle = this.scene.add.circle(
-          beamX + Phaser.Math.Between(-15, 15),
-          beamY + beamHeight/2,
-          3, 0xffffff, 0.8
-        );
-        particle.setDepth(5);
-        this.effects.push(particle);
+      if (isBeam) {
+        // BEAM vertical avec taille limitée
+        const beamWidth = 50;
+        const beamHeight = Phaser.Math.Between(250, 400); // Taille limitée
         
+        // Fond du beam (gradient simulé avec plusieurs rectangles)
+        for (let layer = 0; layer < 3; layer++) {
+          const alpha = 0.7 - (layer * 0.2);
+          const w = beamWidth - (layer * 8);
+          const beam = this.scene.add.graphics();
+          beam.fillStyle(0xffffff, alpha);
+          beam.fillRect(elemX - w/2, elemY - beamHeight/2, w, beamHeight);
+          beam.setDepth(3 + layer);
+          this.effects.push(beam);
+          
+          // Pulsation
+          this.scene.tweens.add({
+            targets: beam,
+            alpha: { from: alpha, to: alpha * 0.5 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1
+          });
+        }
+        
+        // Particules montantes
+        for (let p = 0; p < 8; p++) {
+          const particle = this.scene.add.circle(
+            elemX + Phaser.Math.Between(-beamWidth/3, beamWidth/3),
+            elemY + beamHeight/2,
+            Phaser.Math.Between(2, 4), 
+            0xffffff, 
+            0.8
+          );
+          particle.setDepth(5);
+          this.effects.push(particle);
+          
+          this.scene.tweens.add({
+            targets: particle,
+            y: elemY - beamHeight/2,
+            alpha: 0,
+            duration: 2000,
+            delay: p * 250,
+            repeat: -1
+          });
+        }
+        
+        lightElements.push({ 
+          x: elemX, 
+          y: elemY, 
+          type: 'beam', 
+          width: beamWidth, 
+          height: beamHeight 
+        });
+        
+      } else {
+        // CERCLE RAYONNANT au sol
+        const radius = Phaser.Math.Between(70, 100);
+        
+        // Cercle principal
+        const mainCircle = this.scene.add.circle(elemX, elemY, radius, 0xfffacd, 0.65);
+        mainCircle.setDepth(2);
+        this.effects.push(mainCircle);
+        
+        // Cercle intérieur lumineux
+        const innerCircle = this.scene.add.circle(elemX, elemY, radius * 0.6, 0xffffff, 0.85);
+        innerCircle.setDepth(2);
+        this.effects.push(innerCircle);
+        
+        // Rayonnement - cercles concentriques qui s'expandent
+        for (let r = 0; r < 3; r++) {
+          const createRipple = () => {
+            const ripple = this.scene.add.circle(elemX, elemY, radius * 0.3, 0xffffff, 0.6);
+            ripple.setDepth(1);
+            
+            this.scene.tweens.add({
+              targets: ripple,
+              radius: radius * 1.5,
+              alpha: 0,
+              duration: 2000,
+              ease: 'Sine.easeOut',
+              onComplete: () => ripple.destroy()
+            });
+          };
+          
+          // Créer des ripples en boucle
+          this.scene.time.addEvent({
+            delay: 2000,
+            callback: createRipple,
+            loop: true,
+            startAt: r * 666 // Décalage pour effet continu
+          });
+        }
+        
+        // Pulsation du cercle principal
         this.scene.tweens.add({
-          targets: particle,
-          y: beamY - beamHeight/2,
-          alpha: 0,
-          duration: 2000,
-          delay: p * 400,
+          targets: [mainCircle, innerCircle],
+          alpha: { from: 0.65, to: 0.35 },
+          scale: { from: 1, to: 1.08 },
+          duration: 1800,
+          yoyo: true,
           repeat: -1
         });
+        
+        lightElements.push({ 
+          x: elemX, 
+          y: elemY, 
+          type: 'zone', 
+          radius: radius 
+        });
       }
-      
-      lightElements.push({ x: beamX, y: beamY, type: 'beam', width: 40, height: beamHeight });
-    }
-    
-    // Créer 2-4 zones de lumière (cercles lumineux au sol)
-    const zoneCount = Phaser.Math.Between(2, 4);
-    
-    for (let i = 0; i < zoneCount; i++) {
-      const zoneX = Phaser.Math.Between(200, width - 200);
-      const zoneY = Phaser.Math.Between(200, height - 200);
-      const zoneRadius = Phaser.Math.Between(60, 90);
-      
-      // Zone lumineuse circulaire
-      const zone = this.scene.add.circle(zoneX, zoneY, zoneRadius, 0xfffacd, 0.6);
-      zone.setDepth(2);
-      this.effects.push(zone);
-      
-      // Cercle intérieur plus lumineux
-      const innerZone = this.scene.add.circle(zoneX, zoneY, zoneRadius * 0.6, 0xffffff, 0.8);
-      innerZone.setDepth(2);
-      this.effects.push(innerZone);
-      
-      // Pulsation
-      this.scene.tweens.add({
-        targets: [zone, innerZone],
-        alpha: { from: 0.6, to: 0.3 },
-        scale: { from: 1, to: 1.1 },
-        duration: 2000,
-        yoyo: true,
-        repeat: -1
-      });
-      
-      lightElements.push({ x: zoneX, y: zoneY, type: 'zone', radius: zoneRadius });
     }
     
     // Hazard pour téléportation aléatoire entre faisceaux et zones
@@ -5730,7 +6049,7 @@ export class TerrainSystem {
         player.y + 45, // Offset below player
         player.texture.key
       );
-      floorReflection.setDepth(9);
+      floorReflection.setDepth(8); // En dessous des spirits (9)
       floorReflection.setAlpha(0.4);
       floorReflection.setFlipY(true); // Inversion verticale
       floorReflection.setTint(0xc0d0e0); // Teinte bleutée du sol

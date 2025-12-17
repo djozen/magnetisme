@@ -8,6 +8,7 @@ import { initializeShapes } from '../entities/PlayerShapes.js';
 import { PowerSystem } from '../systems/PowerSystem.js';
 import { playerProgress } from '../systems/PlayerProgress.js';
 import { TerrainSystem, TERRAINS } from '../systems/TerrainSystem.js';
+import { AudioSystem } from '../systems/AudioSystem.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -87,6 +88,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // Initialize audio system
+    this.audioSystem = new AudioSystem(this);
+    
     // Initialize power system
     this.powerSystem = new PowerSystem(this);
     
@@ -139,12 +143,20 @@ export default class GameScene extends Phaser.Scene {
     // Create gifts (rare spawns)
     this.createGifts();
     this.giftSpawnTimer = 0;
+    
+    // Mode debug : activer le rendu des physics bodies
+    if (GAME_CONFIG.DEBUG_SHOW_HITBOXES) {
+      this.physics.world.createDebugGraphic();
+    }
 
     // Setup camera to follow human player
     this.setupCamera();
 
     // Setup UI
     this.createUI();
+    
+    // Listen for resize events to update UI positions
+    this.scale.on('resize', this.resizeUI, this);
 
     // Setup input
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -581,7 +593,7 @@ export default class GameScene extends Phaser.Scene {
     
     // Camera follows human player smoothly
     this.cameras.main.startFollow(humanPlayer, true, 0.08, 0.08);
-    this.cameras.main.setZoom(1);
+    this.cameras.main.setZoom(GAME_CONFIG.CAMERA_ZOOM); // Utiliser le zoom configuré
     this.cameras.main.setBounds(0, 0, GAME_CONFIG.WORLD_WIDTH, GAME_CONFIG.WORLD_HEIGHT);
   }
 
@@ -1307,11 +1319,16 @@ export default class GameScene extends Phaser.Scene {
       }
 
       // If we couldn't find a valid position after 50 attempts, use the last position anyway
-      // For shadow terrain, alternate between default and black spirits
-      let actualSpiritType = spiritType;
-      if (spiritType === 'shadow_varied') {
-        actualSpiritType = (i % 2 === 0) ? 'default' : 'black';
+      // Déterminer le type de spirit - par défaut tous sont "default"
+      // Exception: Aquatic Realm conserve son mélange crab/default (40%/60%)
+      let actualSpiritType = 'default';
+      
+      if (this.currentTerrain && this.currentTerrain.key === 'water') {
+        // Aquatic Realm: 40% crabes, 60% default
+        actualSpiritType = (i % 5 < 2) ? 'crab' : 'default'; // 2/5 = 40% crab, 3/5 = 60% default
       }
+      // Tous les autres terrains: seulement des spirits default
+      // Ils se transformeront selon l'élément du joueur qui les attache
       
       const spirit = new Spirit(this, x, y, this.configBallSpeed, actualSpiritType);
       this.spirits.push(spirit);
@@ -1365,10 +1382,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createUI() {
-    const camera = this.cameras.main;
-
-    // Timer (fixed to camera)
-    this.timerText = this.add.text(camera.width / 2, 30, `Time: ${this.gameTime}`, {
+    const centerX = this.cameras.main.width / 2;
+    
+    // Timer (fixed to top center of screen)
+    this.timerText = this.add.text(centerX, 30, `Time: ${this.gameTime}`, {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#ffffff',
@@ -1377,8 +1394,8 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 4
     }).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
     
-    // Global Score (fixed to camera, below timer)
-    this.globalScoreText = this.add.text(camera.width / 2, 60, `Level ${playerProgress.level} - Score: ${playerProgress.globalScore}`, {
+    // Global Score (fixed below timer)
+    this.globalScoreText = this.add.text(centerX, 60, `Level ${playerProgress.level} - Score: ${playerProgress.globalScore}`, {
       fontSize: '18px',
       fontFamily: 'Arial',
       color: '#ffff00',
@@ -1441,6 +1458,22 @@ export default class GameScene extends Phaser.Scene {
 
     this.updateScoreDisplay();
   }
+  
+  resizeUI(gameSize) {
+    const centerX = this.cameras.main.width / 2;
+    
+    // Update timer position
+    if (this.timerText) {
+      this.timerText.setPosition(centerX, 30);
+    }
+    
+    // Update global score position
+    if (this.globalScoreText) {
+      this.globalScoreText.setPosition(centerX, 60);
+    }
+    
+    // Team scores stay at left (no update needed)
+  }
 
   startTimer() {
     // Clear any existing timer
@@ -1459,6 +1492,11 @@ export default class GameScene extends Phaser.Scene {
         }
       },
       loop: true
+    });
+    
+    // Start background music
+    this.time.delayedCall(500, () => {
+      this.audioSystem.playBackgroundMusic();
     });
   }
 
@@ -1713,6 +1751,9 @@ export default class GameScene extends Phaser.Scene {
           // Skip if this is the tornado creator
           if (zone.player && player === zone.player) return;
           
+          // Skip if player has tornado immunity
+          if (player.tornadoImmune && time < player.tornadoImmuneUntil) return;
+          
           const dist = Phaser.Math.Distance.Between(player.x, player.y, zone.x, zone.y);
           if (dist < zone.radius) {
             if (!player.inTornado) {
@@ -1749,6 +1790,10 @@ export default class GameScene extends Phaser.Scene {
               this.physics.velocityFromRotation(angle, 500, player.body.velocity);
               player.inTornado = false;
               player.cannotCollectSpirits = false;
+              
+              // Add 2 second immunity to tornado
+              player.tornadoImmune = true;
+              player.tornadoImmuneUntil = time + 2000;
             } else {
               // Spin player
               const angle = (time / 100) % (Math.PI * 2);
@@ -1759,6 +1804,11 @@ export default class GameScene extends Phaser.Scene {
             if (player.inTornado) {
               player.inTornado = false;
               player.cannotCollectSpirits = false;
+            }
+            
+            // Remove immunity when expired
+            if (player.tornadoImmune && time >= player.tornadoImmuneUntil) {
+              player.tornadoImmune = false;
             }
           }
         });
@@ -1828,6 +1878,9 @@ export default class GameScene extends Phaser.Scene {
                 if (spirit.followingPlayer === player) {
                   spirit.setFollowPlayer(null);
                   spirit.setActive(false).setVisible(false);
+                  if (spirit.body) {
+                    this.physics.world.disable(spirit);
+                  }
                 }
               });
               
@@ -2212,6 +2265,9 @@ export default class GameScene extends Phaser.Scene {
             spirit.setFollowPlayer(player, playerSpiritCount);
             player.collectSpirit(spirit);
             
+            // Play collect sound
+            this.audioSystem.playSound('collect');
+            
             this.updateScoreDisplay();
           }
           // If spirit is free, collect it
@@ -2219,6 +2275,9 @@ export default class GameScene extends Phaser.Scene {
             const playerSpiritCount = this.spirits.filter(s => s.followingPlayer === player).length;
             spirit.setFollowPlayer(player, playerSpiritCount);
             player.collectSpirit(spirit);
+            
+            // Play collect sound
+            this.audioSystem.playSound('collect');
             
             this.teamScores.find(ts => ts.teamId === player.teamId).score++;
             this.updateScoreDisplay();
@@ -2261,6 +2320,9 @@ export default class GameScene extends Phaser.Scene {
               onComplete: () => {
                 spirit.followingPlayer = null;
                 spirit.setActive(false).setVisible(false);
+                if (spirit.body) {
+                  this.physics.world.disable(spirit);
+                }
                 
                 // Respawn after delay
                 this.time.delayedCall(GAME_CONFIG.SPIRIT_RESPAWN_TIME, () => {
@@ -2333,7 +2395,35 @@ export default class GameScene extends Phaser.Scene {
     spirit.setActive(true).setVisible(true);
     spirit.setAlpha(1).setScale(1);
     spirit.followingPlayer = null;
-
+    
+    // Réactiver le body physique AVANT la transformation
+    if (spirit.body) {
+      this.physics.world.enable(spirit);
+    }
+    
+    // Retourner au type original
+    if (spirit.resetToOriginalType) {
+      spirit.resetToOriginalType();
+    }
+    
+    // Configuration CRITIQUE pour alignement parfait
+    // Réinitialiser complètement le sprite à sa taille de base
+    spirit.setScale(1); // Forcer l'échelle à 1
+    spirit.setOrigin(0.5, 0.5); // Centrer l'origine
+    spirit.displayWidth = 32;
+    spirit.displayHeight = 32;
+    
+    // Reconfigurer le body pour correspondre EXACTEMENT au sprite
+    if (spirit.body) {
+      spirit.body.reset(x, y); // Reset complet du body à la position
+      spirit.body.setSize(32, 32); // Taille exacte
+      spirit.body.setOffset(0, 0); // Pas de décalage
+      if (GAME_CONFIG.DEBUG_SHOW_HITBOXES) {
+        spirit.body.debugShowBody = true;
+        spirit.body.debugBodyColor = 0x00ff00;
+      }
+    }
+    
     // Apparition effect
     this.tweens.add({
       targets: spirit,
