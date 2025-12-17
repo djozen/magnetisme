@@ -753,12 +753,12 @@ export class PowerSystem {
     // this.scatterSpirits(player);
 
     // DESIGN AMÉLIORÉ du pouvoir Shadow
-    // Aura violette extérieure
-    const outerGlow = this.scene.add.circle(player.x, player.y, radius + 10, 0x4b0082, 0.3);
+    // Aura grise extérieure
+    const outerGlow = this.scene.add.circle(player.x, player.y, radius + 10, 0x4a4a4a, 0.3);
     
-    // Spirale violette
+    // Spirale grise
     const spiral = this.scene.add.graphics();
-    spiral.lineStyle(2, 0x9370db, 0.6);
+    spiral.lineStyle(2, 0x666666, 0.6);
     for (let angle = 0; angle < Math.PI * 4; angle += 0.3) {
       const r = (angle / (Math.PI * 4)) * radius;
       const x = player.x + Math.cos(angle) * r;

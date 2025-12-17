@@ -113,8 +113,6 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
       this.createGlassParticles(scene);
     } else if (spiritType === 'ice') {
       this.createIceParticles(scene);
-    } else if (spiritType === 'gold') {
-      this.createGoldParticles(scene);
     } else if (spiritType === 'black') {
       this.createBlackParticles(scene);
     } else if (spiritType === 'wind') {
@@ -469,27 +467,35 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
   }
   
   createBlackParticles(scene) {
-    // Particules d'ombre violettes tourbillonnantes
-    let angle = 0;
+    // Particules void qui sont aspirées vers le centre (effet trou noir)
     this.particleTimer = scene.time.addEvent({
-      delay: 180,
+      delay: 150,
       callback: () => {
         if (!this.active) return;
         
-        angle += 0.4;
-        const dist = 10;
-        const px = this.x + Math.cos(angle) * dist;
-        const py = this.y + Math.sin(angle) * dist;
+        // Créer une particule à l'extérieur qui est aspirée vers le centre
+        const angle = Math.random() * Math.PI * 2;
+        const startDist = 20;
         
-        const particle = scene.add.circle(px, py, 2, 
-          [0x4b0082, 0x8a2be2, 0x9370db][Phaser.Math.Between(0, 2)], 0.7);
+        const px = this.x + Math.cos(angle) * startDist;
+        const py = this.y + Math.sin(angle) * startDist;
+        
+        const particle = scene.add.circle(px, py, 
+          Phaser.Math.Between(1, 2), 
+          [0x2a2a2a, 0x3a3a3a, 0x1a1a1a][Phaser.Math.Between(0, 2)], 
+          0.8
+        );
         particle.setDepth(8);
         
+        // Animation: aspirée vers le centre du spirit
         scene.tweens.add({
           targets: particle,
+          x: this.x,
+          y: this.y,
           scale: 0,
           alpha: 0,
-          duration: 500,
+          duration: 800,
+          ease: 'Cubic.easeIn',
           onComplete: () => particle.destroy()
         });
       },
@@ -793,8 +799,6 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
         this.createGlassParticles(this.scene);
       } else if (newType === 'ice') {
         this.createIceParticles(this.scene);
-      } else if (newType === 'gold') {
-        this.createGoldParticles(this.scene);
       } else if (newType === 'black') {
         this.createBlackParticles(this.scene);
       } else if (newType === 'wind') {
@@ -1003,55 +1007,77 @@ export default class Spirit extends Phaser.Physics.Arcade.Sprite {
   }
 
   static drawBlackSpirit(graphics) {
-    // Black/dark purple body
-    graphics.fillStyle(0x1a1a1a, 1);
-    graphics.fillCircle(16, 16, 14);
+    const cx = 16, cy = 16;
     
-    // Add dark fluffy effect
+    // Rayons noirs (comme une aura sombre)
+    graphics.lineStyle(2, 0x000000, 0.6);
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
-      const px = 16 + Math.cos(angle) * 10;
-      const py = 16 + Math.sin(angle) * 10;
-      graphics.fillCircle(px, py, 4);
+      const px = cx + Math.cos(angle) * 15;
+      const py = cy + Math.sin(angle) * 15;
+      graphics.lineBetween(cx, cy, px, py);
     }
     
-    // Glowing purple eyes
-    graphics.fillStyle(0x8a2be2, 1);
-    graphics.fillCircle(11, 14, 6);
-    graphics.fillCircle(21, 14, 6);
+    // Rayons secondaires (plus courts)
+    graphics.lineStyle(1.5, 0x333333, 0.5);
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const px = cx + Math.cos(angle) * 11;
+      const py = cy + Math.sin(angle) * 11;
+      graphics.lineBetween(cx, cy, px, py);
+    }
     
-    // Inner glow
-    graphics.fillStyle(0x9370db, 1);
-    graphics.fillCircle(11, 14, 4);
-    graphics.fillCircle(21, 14, 4);
+    // Corps noir principal
+    graphics.fillStyle(0x1a1a1a, 1);
+    graphics.fillCircle(cx, cy, 12);
     
-    // Bright center
-    graphics.fillStyle(0xda70d6, 1);
-    graphics.fillCircle(11, 14, 2);
-    graphics.fillCircle(21, 14, 2);
+    // Effet duveteux gris foncé
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const px = cx + Math.cos(angle) * 9;
+      const py = cy + Math.sin(angle) * 9;
+      graphics.fillCircle(px, py, 3);
+    }
     
-    // White highlights
+    // Yeux gris lumineux
+    graphics.fillStyle(0x696969, 1);
+    graphics.fillCircle(cx - 5, cy - 2, 5);
+    graphics.fillCircle(cx + 5, cy - 2, 5);
+    
+    // Reflet gris clair
+    graphics.fillStyle(0x808080, 1);
+    graphics.fillCircle(cx - 5, cy - 2, 3);
+    graphics.fillCircle(cx + 5, cy - 2, 3);
+    
+    // Centre gris très clair
+    graphics.fillStyle(0xa9a9a9, 1);
+    graphics.fillCircle(cx - 5, cy - 2, 1.5);
+    graphics.fillCircle(cx + 5, cy - 2, 1.5);
+    
+    // Points blancs
     graphics.fillStyle(0xffffff, 1);
-    graphics.fillCircle(10, 12, 1);
-    graphics.fillCircle(20, 12, 1);
+    graphics.fillCircle(cx - 6, cy - 4, 1);
+    graphics.fillCircle(cx + 4, cy - 4, 1);
     
-    // Dark wispy trails
-    graphics.fillStyle(0x4b0082, 0.6);
+    // Traînées grises
+    graphics.fillStyle(0x555555, 0.6);
     for (let i = 0; i < 5; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = 16 + Math.random() * 4;
-      const x = 16 + Math.cos(angle) * dist;
-      const y = 16 + Math.sin(angle) * dist;
-      graphics.fillCircle(x, y, 2);
+      const dist = 14 + Math.random() * 3;
+      const x = cx + Math.cos(angle) * dist;
+      const y = cy + Math.sin(angle) * dist;
+      graphics.fillCircle(x, y, 1.5);
     }
     
-    // Purple aura outline
-    graphics.lineStyle(2, 0x8a2be2, 0.8);
-    graphics.strokeCircle(16, 16, 15);
+    // Aura grise
+    graphics.lineStyle(2, 0x4a4a4a, 0.7);
+    graphics.strokeCircle(cx, cy, 13);
     
-    // Additional dark purple glow
-    graphics.lineStyle(1, 0x9370db, 0.4);
-    graphics.strokeCircle(16, 16, 17);
+    // Lueur grise secondaire
+    graphics.lineStyle(1, 0x666666, 0.4);
+    graphics.strokeCircle(cx, cy, 15);
+    
+    return graphics;
   }
 
   static drawBubbleSpirit(graphics) {

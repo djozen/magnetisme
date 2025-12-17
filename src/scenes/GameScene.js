@@ -1156,7 +1156,7 @@ export default class GameScene extends Phaser.Scene {
             repeat: -1
           });
         }
-        createBaseText(x, y + size * 0.9, 'BLACK HOLE', { color: '#9400d3' });
+        createBaseText(x, y + size * 0.9, 'BLACK HOLE', { color: '#666666' });
         break;
 
       case 'iron':

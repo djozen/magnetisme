@@ -3677,14 +3677,14 @@ export class TerrainSystem {
       const magnetRadius = GAME_CONFIG.TILE_SIZE * 4; // Zone magnétique réduite
       
       // DESIGN AMÉLIORÉ du trou noir void
-      // Cercle extérieur violet sombre (aura)
-      const outerRing = this.scene.add.circle(bhX, bhY, disappearRadius + 15, 0x4b0082, 0.4);
+      // Cercle extérieur gris sombre (aura)
+      const outerRing = this.scene.add.circle(bhX, bhY, disappearRadius + 15, 0x4a4a4a, 0.4);
       outerRing.setDepth(98);
       this.effects.push(outerRing);
       
-      // Spirale violette animée
+      // Spirale grise animée
       const spiral = this.scene.add.graphics();
-      spiral.lineStyle(3, 0x9370db, 0.7);
+      spiral.lineStyle(3, 0x666666, 0.7);
       for (let angle = 0; angle < Math.PI * 6; angle += 0.2) {
         const r = (angle / (Math.PI * 6)) * disappearRadius;
         const x = bhX + Math.cos(angle) * r;
@@ -3700,18 +3700,18 @@ export class TerrainSystem {
       spiral.setDepth(100);
       this.effects.push(spiral);
       
-      // Centre noir profond (différent des obstacles)
-      const blackHole = this.scene.add.circle(bhX, bhY, disappearRadius, 0x000000, 1);
+      // Centre gris profond (différent des obstacles)
+      const blackHole = this.scene.add.circle(bhX, bhY, disappearRadius, 0x2a2a2a, 1);
       blackHole.setDepth(101);
       this.effects.push(blackHole);
       
-      // Particules violettes tourbillonnantes
+      // Particules grises tourbillonnantes
       for (let p = 0; p < 8; p++) {
         const particle = this.scene.add.circle(
           bhX + Math.cos(p) * disappearRadius,
           bhY + Math.sin(p) * disappearRadius,
           3,
-          0x9370db,
+          0x666666,
           0.8
         );
         particle.setDepth(102);
@@ -3728,8 +3728,8 @@ export class TerrainSystem {
         });
       }
       
-      // Zone de magnétisme (cercle violet transparent)
-      const magnetZone = this.scene.add.circle(bhX, bhY, magnetRadius, 0x4b0082, 0.15);
+      // Zone de magnétisme (cercle gris transparent)
+      const magnetZone = this.scene.add.circle(bhX, bhY, magnetRadius, 0x4a4a4a, 0.15);
       magnetZone.setDepth(99);
       this.effects.push(magnetZone);
       
@@ -4349,7 +4349,7 @@ export class TerrainSystem {
       // Type 6: Jewelry boxes with coins
       () => {
         const box = this.scene.add.graphics();
-        box.fillStyle(0x4b0082, 1);
+        box.fillStyle(0x555555, 1);
         box.fillRect(-12, -8, 24, 16);
         box.fillStyle(0xffd700, 1);
         box.fillRect(-10, -6, 20, 12);
@@ -5393,13 +5393,13 @@ export class TerrainSystem {
   createBlackHole(x, y) {
     // Black hole visual
     const blackHole = this.scene.add.graphics();
-    blackHole.fillGradientStyle(0x000000, 0x000000, 0x4b0082, 0x4b0082, 1, 1, 0.5, 0.5);
+    blackHole.fillGradientStyle(0x2a2a2a, 0x2a2a2a, 0x4a4a4a, 0x4a4a4a, 1, 1, 0.5, 0.5);
     blackHole.fillCircle(x, y, 40);
     blackHole.setDepth(2);
     this.effects.push(blackHole);
     
     // Event horizon
-    const horizon = this.scene.add.circle(x, y, 50, 0x8a2be2, 0.3);
+    const horizon = this.scene.add.circle(x, y, 50, 0x666666, 0.3);
     horizon.setDepth(2);
     this.effects.push(horizon);
     

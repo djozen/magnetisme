@@ -12,7 +12,7 @@ export const ELEMENTS = {
   PLASMA: { name: 'Plasma', color: 0xff1493, key: 'plasma', requiredLevel: 13 },
   TOXIC: { name: 'Toxic', color: 0x00ff00, key: 'toxic', requiredLevel: 13 },
   THUNDER: { name: 'Thunder', color: 0xffd700, key: 'thunder', requiredLevel: 15 },
-  SHADOW: { name: 'Shadow', color: 0x4b0082, key: 'shadow', requiredLevel: 17 },
+  SHADOW: { name: 'Shadow', color: 0x4a4a4a, key: 'shadow', requiredLevel: 17 },
   LIGHT: { name: 'Light', color: 0xfffacd, key: 'light', requiredLevel: 17 },
   IRON: { name: 'Iron', color: 0x808080, key: 'iron', requiredLevel: 19 },
   GOLD: { name: 'Gold', color: 0xdaa520, key: 'gold', requiredLevel: 20 }
